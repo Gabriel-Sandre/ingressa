@@ -1,0 +1,76 @@
+# Requisições de exemplo (VS Code: extensão REST Client · Visual Studio: nativo)
+# Os ids dos eventos e setores de exemplo podem variar: confira em GET /api/eventos.
+@base = http://localhost:5080
+@senha = Senha@123
+
+### Login do organizador de exemplo
+# @name loginOrganizador
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "organizador@ingressa.dev", "senha": "{{senha}}" }
+
+### Login do cliente de exemplo
+# @name loginCliente
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "cliente@ingressa.dev", "senha": "{{senha}}" }
+
+###
+@tokenOrganizador = {{loginOrganizador.response.body.accessToken}}
+@tokenCliente = {{loginCliente.response.body.accessToken}}
+
+### Vitrine com busca, ordenação e paginação
+GET {{base}}/api/eventos?busca=rock&ordem=Data&pagina=1&tamanhoPagina=5
+
+### Detalhe de um evento
+GET {{base}}/api/eventos/1
+
+### Criar evento (rascunho)
+# @name novoEvento
+POST {{base}}/api/eventos
+Authorization: Bearer {{tokenOrganizador}}
+Content-Type: application/json
+
+{
+  "titulo": "Show de Lançamento",
+  "descricao": "Lançamento do novo álbum.",
+  "local": "Casa de Shows Centro",
+  "cidade": "Rio de Janeiro",
+  "dataInicio": "2027-03-20T23:00:00Z"
+}
+
+### Adicionar setor
+POST {{base}}/api/eventos/{{novoEvento.response.body.id}}/setores
+Authorization: Bearer {{tokenOrganizador}}
+Content-Type: application/json
+
+{ "nome": "Pista", "preco": 90.00, "capacidade": 300 }
+
+### Publicar
+POST {{base}}/api/eventos/{{novoEvento.response.body.id}}/publicar
+Authorization: Bearer {{tokenOrganizador}}
+
+### Comprar ingressos (cliente)
+# @name compra
+POST {{base}}/api/pedidos
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{ "eventoId": 1, "itens": [ { "setorId": 1, "quantidade": 2 } ] }
+
+### Meus pedidos
+GET {{base}}/api/pedidos
+Authorization: Bearer {{tokenCliente}}
+
+### Cancelar pedido
+POST {{base}}/api/pedidos/{{compra.response.body.id}}/cancelar
+Authorization: Bearer {{tokenCliente}}
+
+### Tentar comprar em setor esgotado (espera 409)
+POST {{base}}/api/pedidos
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{ "eventoId": 1, "itens": [ { "setorId": 3, "quantidade": 1 } ] }
