@@ -7,6 +7,13 @@ namespace Ingressa.Domain.Usuarios;
 /// </summary>
 public class RefreshToken
 {
+    /// <summary>
+    /// Um token recém-usado ainda é aceito por alguns segundos. Isso evita derrubar
+    /// a sessão quando duas abas renovam ao mesmo tempo (o mesmo token chega duas vezes).
+    /// Fora dessa janela, a reutilização é tratada como roubo.
+    /// </summary>
+    public static readonly TimeSpan JanelaDeTolerancia = TimeSpan.FromSeconds(10);
+
     private RefreshToken() { } // EF Core
 
     public int Id { get; private set; }
@@ -30,6 +37,10 @@ public class RefreshToken
     public bool FoiUsado => UsadoEm is not null;
 
     public bool EstaAtivo(DateTime agora) => UsadoEm is null && RevogadoEm is null && ExpiraEm > agora;
+
+    /// <summary>Usado há pouco, sem ter sido revogado nem vencido: renovação simultânea legítima.</summary>
+    public bool DentroDaJanelaDeTolerancia(DateTime agora) =>
+        UsadoEm is { } usado && RevogadoEm is null && ExpiraEm > agora && agora - usado <= JanelaDeTolerancia;
 
     public void MarcarComoUsado(DateTime agora) => UsadoEm ??= agora;
 
