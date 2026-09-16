@@ -16,6 +16,7 @@ public class MensagemOutbox
     public string Tipo { get; private set; } = string.Empty;
     public string Conteudo { get; private set; } = string.Empty;
     public DateTime OcorridoEm { get; private set; }
+    /// <summary>traceparent (W3C) da requisição que gerou a mensagem.</summary>
     public string? CorrelacaoId { get; private set; }
     public DateTime? PublicadaEm { get; private set; }
     public int Tentativas { get; private set; }

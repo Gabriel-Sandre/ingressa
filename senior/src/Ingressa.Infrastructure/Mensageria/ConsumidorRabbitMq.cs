@@ -1,4 +1,8 @@
+using System.Diagnostics;
+using System.Text;
+using Ingressa.Application.Observabilidade;
 using Ingressa.Domain.Comum;
+using Ingressa.Infrastructure.Observabilidade;
 using Ingressa.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -60,6 +64,16 @@ public abstract class ConsumidorRabbitMq(
     private async Task TratarAsync(IChannel canal, BasicDeliverEventArgs entrega, CancellationToken ct)
     {
         var tipo = entrega.BasicProperties.Type ?? entrega.RoutingKey;
+
+        // Continua o rastreamento iniciado na requisição HTTP que gerou a mensagem.
+        var traceparent = entrega.BasicProperties.Headers?.TryGetValue("traceparent", out var valor) == true && valor is byte[] bytes
+            ? Encoding.UTF8.GetString(bytes)
+            : entrega.BasicProperties.CorrelationId;
+        using var atividade = Metricas.Rastreamento.StartActivity(
+            $"{Fila} processar", ActivityKind.Consumer, Telemetria.ContextoPai(traceparent));
+        atividade?.SetTag("messaging.system", "rabbitmq");
+        atividade?.SetTag("messaging.destination.name", Fila);
+        atividade?.SetTag("messaging.message.id", entrega.BasicProperties.MessageId);
         using var escopoDeLog = logger.BeginScope(new Dictionary<string, object?>
         {
             ["MensagemId"] = entrega.BasicProperties.MessageId,
@@ -95,6 +109,7 @@ public abstract class ConsumidorRabbitMq(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Volta para a fila; depois de Topologia.LimiteDeEntregas tentativas, vai para a fila de falhas.
+            atividade?.SetStatus(ActivityStatusCode.Error, ex.Message);
             logger.LogWarning(ex, "Falha ao processar a mensagem (entrega repetida: {Repetida})", entrega.Redelivered);
             await canal.BasicNackAsync(entrega.DeliveryTag, multiple: false, requeue: true, ct);
         }
