@@ -4,9 +4,11 @@ using Ingressa.Api.Infra;
 using Ingressa.Application;
 using Ingressa.Application.Abstracoes;
 using Ingressa.Infrastructure;
+using Ingressa.Infrastructure.Observabilidade;
 using Ingressa.Infrastructure.Persistencia;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +22,18 @@ builder.Services.AddSingleton(jwt);
 builder.Services.AddAplicacao();
 builder.Services.AddInfraestrutura(builder.Configuration);
 builder.Services.AddSingleton<IGeradorDeAccessToken, GeradorDeAccessTokenJwt>();
+builder.Services.AddObservabilidade(builder.Configuration, "ingressa-api");
+
+// ---------- Proxy reverso (nginx / load balancer) ----------
+// Sem isto, todo cliente teria o IP do proxy, e o limite por IP bloquearia todo mundo junto.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.ForwardLimit = 1;
+    // Os proxies ficam na rede privada dos containers/VPC, que não é acessível de fora.
+    o.KnownIPNetworks.Clear();
+    o.KnownProxies.Clear();
+});
 
 // ---------- Segurança ----------
 builder.Services
@@ -42,6 +56,7 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCabecalhosPadrao();

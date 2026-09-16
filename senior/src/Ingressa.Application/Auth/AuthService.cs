@@ -82,7 +82,7 @@ public sealed class AuthService(
         var atual = await refreshTokens.ObterPorHashAsync(codigos.Hash(refreshToken), ct)
             ?? throw new NaoAutenticadoException("Sessão expirada.");
 
-        if (atual.FoiUsado)
+        if (atual.FoiUsado && !atual.DentroDaJanelaDeTolerancia(agora))
         {
             await refreshTokens.RevogarFamiliaAsync(atual.Familia, agora, ct);
             await unidade.SalvarAsync(ct);
@@ -92,7 +92,7 @@ public sealed class AuthService(
             throw new NaoAutenticadoException("Sessão expirada.");
         }
 
-        if (!atual.EstaAtivo(agora))
+        if (!atual.FoiUsado && !atual.EstaAtivo(agora))
         {
             throw new NaoAutenticadoException("Sessão expirada.");
         }

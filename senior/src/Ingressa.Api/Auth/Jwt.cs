@@ -15,6 +15,12 @@ public sealed class OpcoesJwt
     public string Audiencia { get; set; } = "Ingressa.Clientes";
     public string Chave { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Chaves antigas, aceitas só para validar tokens já emitidos. Permite trocar a chave
+    /// sem derrubar todas as sessões: publica-se a nova em Chave e a anterior aqui por 15 minutos.
+    /// </summary>
+    public List<string> ChavesAnteriores { get; set; } = [];
+
     /// <summary>Curto de propósito: a sessão é mantida pelo refresh token.</summary>
     public int ExpiracaoMinutos { get; set; } = 15;
 
@@ -24,6 +30,11 @@ public sealed class OpcoesJwt
         {
             throw new InvalidOperationException(
                 "A chave JWT (Jwt:Chave) precisa ter pelo menos 32 bytes. Configure com user-secrets ou a variável Jwt__Chave.");
+        }
+
+        if (ChavesAnteriores.Exists(c => Encoding.UTF8.GetByteCount(c) < 32))
+        {
+            throw new InvalidOperationException("Todas as chaves em Jwt:ChavesAnteriores precisam ter pelo menos 32 bytes.");
         }
 
         if (ExpiracaoMinutos is < 1 or > 60)
@@ -39,7 +50,9 @@ public sealed class OpcoesJwt
         ValidateAudience = true,
         ValidAudience = Audiencia,
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Chave)),
+        IssuerSigningKeys = ChavesAnteriores.Prepend(Chave)
+            .Select(c => (SecurityKey)new SymmetricSecurityKey(Encoding.UTF8.GetBytes(c)))
+            .ToList(),
         ValidateLifetime = true,
         ClockSkew = TimeSpan.FromSeconds(30),
         NameClaimType = Claims.Nome,
