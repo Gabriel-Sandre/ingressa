@@ -28,4 +28,4 @@ Opção 3, aplicada com o atributo `[Idempotente]` em reservar e pagar.
 - ✅ Retentativas seguras; o front gera a chave uma vez por intenção de compra.
 - ❌ Uma tabela a mais, limpa depois de 24 h pela `LimpezaDeDados`.
 - ⚠️ Se o processo cair no meio, a chave fica "em andamento". Depois de 2 minutos ela pode ser retomada por uma nova tentativa (troca atômica da data), sem esperar a limpeza.
-- ❌ Se a queda acontecer **depois** do commit e **antes** de guardar a resposta, a retomada executa de novo: para reservar, a regra de domínio de passe/estoque ainda protege; é o limite conhecido desta abordagem sem transação única entre chave e pedido.
+- ❌ Se a queda acontecer **depois** do commit e **antes** de guardar a resposta, a retomada executa de novo. No pagamento, a regra "pedido já pago" impede cobrança dupla; na reserva, pode surgir uma segunda reserva, que expira sozinha se não for paga. É o limite conhecido de guardar a chave fora da transação do pedido; a correção completa (gravar a resposta na mesma transação) está no roadmap.
