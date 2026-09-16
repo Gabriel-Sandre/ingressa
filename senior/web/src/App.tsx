@@ -7,6 +7,7 @@ import { EventoDetalhe } from './paginas/EventoDetalhe'
 import { MeusPedidos } from './paginas/MeusPedidos'
 import { Organizador } from './paginas/Organizador'
 import { Pagamento } from './paginas/Pagamento'
+import { SalaDeEspera } from './paginas/SalaDeEspera'
 import { Vitrine } from './paginas/Vitrine'
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Vitrine />} />
         <Route path="eventos/:id" element={<EventoDetalhe />} />
+        <Route path="eventos/:id/fila" element={<Protegida perfil="Cliente"><SalaDeEspera /></Protegida>} />
         <Route path="entrar" element={<Entrar />} />
         <Route path="cadastro" element={<Cadastro />} />
         <Route path="pedidos" element={<Protegida perfil="Cliente"><MeusPedidos /></Protegida>} />

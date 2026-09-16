@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { get, post } from '../api/cliente'
+import { get, novaChave, post, postIdempotente } from '../api/cliente'
 import type { Pedido } from '../api/tipos'
 import { Aviso, Carregando } from '../componentes/Comum'
 import { useCarga } from '../componentes/useCarga'
@@ -24,6 +24,8 @@ export function Pagamento() {
   const [falha, setFalha] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [agora, setAgora] = useState(() => Date.now())
+  // Mesma chave enquanto a operação não mudar: um clique duplo não gera duas cobranças.
+  const [chave, setChave] = useState(novaChave)
 
   useEffect(() => {
     const t = window.setInterval(() => setAgora(Date.now()), 1000)
@@ -49,10 +51,11 @@ export function Pagamento() {
     setFalha(null)
     setEnviando(true)
     try {
-      await post<Pedido>(`/api/pedidos/${pedido.id}/pagamento`, { tokenDePagamento: token })
+      await postIdempotente<Pedido>(`/api/pedidos/${pedido.id}/pagamento`, { tokenDePagamento: token }, chave)
       navegar(`/pedidos?pago=${pedido.id}`)
     } catch (err) {
       setFalha((err as Error).message)
+      setChave(novaChave())
       setEnviando(false)
     }
   }
@@ -92,7 +95,10 @@ export function Pagamento() {
           <legend>Forma de pagamento (ambiente de demonstração)</legend>
           {OPCOES.map((o) => (
             <label key={o.token} className="opcao">
-              <input type="radio" name="token" value={o.token} checked={token === o.token} onChange={() => setToken(o.token)} />
+              <input type="radio" name="token" value={o.token} checked={token === o.token} onChange={() => {
+                  setToken(o.token)
+                  setChave(novaChave())
+                }} />
               {o.rotulo}
             </label>
           ))}

@@ -51,6 +51,7 @@ export function Organizador() {
           local: f.get('local'),
           cidade: f.get('cidade'),
           dataInicio: localParaIso(String(f.get('dataInicio'))),
+          filaVirtual: f.get('filaVirtual') === 'on',
         }),
       'Evento criado como rascunho. Adicione setores e publique.',
     )
@@ -85,6 +86,9 @@ export function Organizador() {
               Data e hora <input name="dataInicio" type="datetime-local" required />
             </label>
           </div>
+          <label className="opcao">
+            <input type="checkbox" name="filaVirtual" /> Evento de alta procura (usar fila virtual)
+          </label>
           <button className="primario">Criar rascunho</button>
         </form>
       </details>
@@ -99,7 +103,10 @@ export function Organizador() {
                 {evento.titulo}
               </Link>
             </h2>
-            {evento.publicado ? <Selo tom="ok">Publicado</Selo> : <Selo tom="neutro">Rascunho</Selo>}
+            <span>
+              {evento.filaVirtual && <Selo tom="neutro">Fila virtual</Selo>}{' '}
+              {evento.publicado ? <Selo tom="ok">Publicado</Selo> : <Selo tom="neutro">Rascunho</Selo>}
+            </span>
           </header>
           <p className="meta">
             {dataHora(evento.dataInicio)} · {evento.local} · {evento.cidade}

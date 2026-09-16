@@ -84,6 +84,9 @@ fieldset { border: 1px solid var(--borda); border-radius: var(--raio); display: 
 
 .cronometro { font-weight: 700; color: var(--primaria-escura); }
 .cronometro.urgente { color: var(--perigo); }
+.espera { text-align: center; padding: 2rem 1rem; }
+.posicao { font-size: 1.4rem; margin: 0 0 1rem; }
+.barra { width: 100%; max-width: 420px; height: 10px; margin: 0 auto 1rem; accent-color: var(--primaria); }
 .codigo { font-family: ui-monospace, Consolas, monospace; letter-spacing: 0.05em; }
 .rodape { text-align: center; color: var(--suave); font-size: 0.85rem; padding: 2rem 1rem; }
 

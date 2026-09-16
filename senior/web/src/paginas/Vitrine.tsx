@@ -72,6 +72,7 @@ export function Vitrine() {
                 <p className="meta">
                   {e.local} · {e.cidade}
                 </p>
+                {e.filaVirtual && !e.esgotado && <Selo tom="neutro">Alta procura · fila virtual</Selo>}
                 <p className="preco">
                   {e.esgotado ? (
                     <Selo>Esgotado</Selo>
