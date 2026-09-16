@@ -81,6 +81,16 @@ app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains("pronto") });
 
+// Em produção as migrations rodam numa tarefa separada, antes do deploy
+// (`dotnet Ingressa.Api.dll --migrar-e-sair`): várias réplicas subindo juntas
+// não disputam a mesma migration, e uma migration com erro impede o deploy.
+if (args.Contains("--migrar-e-sair"))
+{
+    await InicializadorDoBanco.InicializarAsync(app.Services, app.Configuration, dadosDeDemonstracao: false);
+    app.Logger.LogInformation("Banco atualizado; encerrando");
+    return;
+}
+
 if (app.Configuration.GetValue("Banco:InicializarAoIniciar", true))
 {
     await InicializadorDoBanco.InicializarAsync(
