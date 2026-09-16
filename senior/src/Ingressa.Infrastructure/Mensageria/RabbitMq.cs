@@ -14,6 +14,9 @@ public sealed class OpcoesRabbitMq
     public int Porta { get; set; } = 5672;
     public string Usuario { get; set; } = "guest";
     public string Senha { get; set; } = "guest";
+
+    /// <summary>AMQPS (porta 5671). Exigido por brokers gerenciados como o Amazon MQ.</summary>
+    public bool UsarTls { get; set; }
 }
 
 /// <summary>Nomes de exchanges e filas em um só lugar.</summary>
@@ -97,7 +100,8 @@ public sealed class ConexaoRabbitMq(IOptions<OpcoesRabbitMq> opcoes, ILogger<Con
                     UserName = o.Usuario,
                     Password = o.Senha,
                     ClientProvidedName = $"ingressa-{Environment.MachineName}",
-                    AutomaticRecoveryEnabled = true
+                    AutomaticRecoveryEnabled = true,
+                    Ssl = new SslOption { Enabled = o.UsarTls, ServerName = o.Host }
                 };
                 _conexao = await fabrica.CreateConnectionAsync(ct);
                 _topologiaDeclarada = false;
