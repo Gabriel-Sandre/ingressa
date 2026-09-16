@@ -35,7 +35,8 @@ internal sealed class ConsultasDeEventos(IngressaDbContext db) : IConsultasDeEve
             e.Cidade,
             e.DataInicio,
             PrecoMinimo = e.Setores.Min(s => (decimal?)s.Preco),
-            Esgotado = e.Setores.Any() && e.Setores.All(s => s.Ocupados >= s.Capacidade)
+            Esgotado = e.Setores.Any() && e.Setores.All(s => s.Ocupados >= s.Capacidade),
+            e.FilaVirtual
         });
 
         projetada = filtro.Ordem switch
@@ -49,7 +50,7 @@ internal sealed class ConsultasDeEventos(IngressaDbContext db) : IConsultasDeEve
         var itens = await projetada
             .Skip((filtro.Pagina - 1) * filtro.TamanhoPagina)
             .Take(filtro.TamanhoPagina)
-            .Select(e => new EventoResumoResponse(e.Id, e.Titulo, e.Local, e.Cidade, e.DataInicio, e.PrecoMinimo, e.Esgotado))
+            .Select(e => new EventoResumoResponse(e.Id, e.Titulo, e.Local, e.Cidade, e.DataInicio, e.PrecoMinimo, e.Esgotado, e.FilaVirtual))
             .ToListAsync(ct);
 
         return Paginas.Criar(itens, filtro.Pagina, filtro.TamanhoPagina, total);

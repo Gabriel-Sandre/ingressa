@@ -64,16 +64,20 @@ public static class InicializadorDoBanco
         var eventos = new List<(Evento Evento, int[] Ocupar)>
         {
             (NovoEvento(organizador.Id, hoje, 30, "Festival de Rock da Baixada", "Belford Roxo", "Arena Municipal",
-                "Três palcos e doze bandas independentes do Rio de Janeiro.",
+                "Três palcos e doze bandas independentes do Rio de Janeiro. Evento de alta procura: compra pela fila virtual.",
+                true,
                 ("Pista", 80m, 500), ("Pista Premium", 150m, 200), ("Camarote", 320m, 50)), [120, 190, 50]),
             (NovoEvento(organizador.Id, hoje, 12, "Stand-up: Noite de Comédia", "Rio de Janeiro", "Teatro Central",
                 "Quatro comediantes em uma noite de humor sem roteiro.",
+                false,
                 ("Plateia", 60m, 300), ("Mezanino", 40m, 120)), [30, 0]),
             (NovoEvento(organizador.Id, hoje, 45, "Workshop de .NET para Iniciantes", "Nova Iguaçu", "Centro de Tecnologia",
                 "Um dia de mão na massa com C#, ASP.NET Core e Entity Framework Core.",
+                false,
                 ("Presencial", 0m, 40)), [38]),
             (NovoEvento(organizador.Id, hoje, 7, "Samba no Quintal", "Duque de Caxias", "Quadra da Vila",
                 "Roda de samba com feijoada. Ingressos esgotados!",
+                false,
                 ("Entrada", 35m, 150)), [150])
         };
 
@@ -103,10 +107,11 @@ public static class InicializadorDoBanco
 
     private static Evento NovoEvento(
         int organizadorId, DateTime hoje, int dias, string titulo, string cidade, string local, string descricao,
+        bool filaVirtual,
         params (string Nome, decimal Preco, int Capacidade)[] setores)
     {
         // 22h UTC = 19h no horário de Brasília. "agora" é a data de criação; o evento fica no futuro.
-        var evento = Evento.Criar(organizadorId, new DadosDoEvento(titulo, descricao, local, cidade, hoje.AddDays(dias).AddHours(22)), hoje);
+        var evento = Evento.Criar(organizadorId, new DadosDoEvento(titulo, descricao, local, cidade, hoje.AddDays(dias).AddHours(22), filaVirtual), hoje);
         foreach (var (nome, preco, capacidade) in setores)
         {
             evento.AdicionarSetor(nome, preco, capacidade);
