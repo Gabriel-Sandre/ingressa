@@ -17,6 +17,12 @@ public static class CabecalhosDeSeguranca
                 h.XContentTypeOptions = "nosniff";
                 h.XFrameOptions = "DENY";
                 h["Referrer-Policy"] = "no-referrer";
+                // Respostas da API podem conter dados pessoais: nenhum proxy ou navegador deve guardá-las.
+                if (string.IsNullOrEmpty(h.CacheControl))
+                {
+                    h.CacheControl = "no-store";
+                }
+
                 if (Activity.Current is { } atividade)
                 {
                     h["X-Trace-Id"] = atividade.TraceId.ToString();

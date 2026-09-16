@@ -245,6 +245,18 @@ public sealed class OperacaoTests(ApiFactory api)
     }
 
     [Fact]
+    public async Task RespostasDaApi_NaoSaoGuardadasEmCache()
+    {
+        var (cliente, _) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
+
+        var resposta = await cliente.GetAsync("/api/pedidos");
+
+        Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+        Assert.True(resposta.Headers.CacheControl is { NoStore: true });
+        Assert.False(string.IsNullOrEmpty(resposta.Headers.GetValues("X-Trace-Id").Single()));
+    }
+
+    [Fact]
     public async Task TokenAssinadoComChaveAnterior_AindaEhAceito()
     {
         var (_, usuarioId) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
