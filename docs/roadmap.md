@@ -10,18 +10,18 @@
 - [x] Vitrine em JavaScript puro
 - [x] 54 testes automatizados
 
-## Versão Pleno 🚧
+## Versão Pleno ✅
 
-- [ ] Camadas Domain / Application / Infrastructure / Api
-- [ ] PostgreSQL com migrations
-- [ ] Concorrência otimista na baixa de estoque, com teste que prova a correção
-- [ ] Reserva com expiração e pagamento simulado (webhook)
-- [ ] Perfil administrador e aprovação de organizadores
-- [ ] Refresh token com rotação
-- [ ] RabbitMQ + padrão Outbox para emitir ingressos e e-mails
-- [ ] Serilog, health checks, Docker Compose
-- [ ] Testes de integração com Testcontainers; GitHub Actions
-- [ ] Frontend React + TypeScript
+- [x] Camadas Domain / Application / Infrastructure / Api
+- [x] PostgreSQL com migrations
+- [x] Concorrência otimista na baixa de estoque, com teste que prova a correção
+- [x] Reserva com expiração e pagamento simulado (webhook)
+- [x] Perfil administrador e aprovação de organizadores
+- [x] Refresh token com rotação
+- [x] RabbitMQ + padrão Outbox para emitir ingressos e e-mails
+- [x] Serilog, health checks, Docker Compose
+- [x] Testes de integração com Testcontainers; GitHub Actions
+- [x] Frontend React + TypeScript
 
 ## Versão Sênior ⏳
 

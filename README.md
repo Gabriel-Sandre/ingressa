@@ -21,16 +21,17 @@ O Ingressa resolve esses problemas **em etapas**, e cada etapa fica registrada n
 
 ## As três versões
 
-| | [Júnior](junior/) | Pleno | Sênior |
+| | [Júnior](junior/) | [Pleno](pleno/) | Sênior |
 |---|---|---|---|
 | **Pergunta que responde** | "Sei construir uma API correta?" | "Sei estruturar um sistema profissional?" | "Sei decidir arquitetura para escala e falhas?" |
 | **Arquitetura** | Monólito em um projeto | Monólito em camadas | Monólito modular + serviços extraídos com justificativa |
 | **Banco** | SQLite | PostgreSQL + migrations | PostgreSQL + Redis |
 | **Concorrência** | Não tratada (limitação documentada) | Concorrência otimista + reserva com expiração | Fila virtual + idempotência |
 | **Mensageria** | — | RabbitMQ + Outbox | Eventos entre módulos |
+| **Interface** | JavaScript puro | React + TypeScript | + testes ponta a ponta |
 | **Qualidade** | Testes de unidade/serviço | + integração com banco real, CI | + carga (k6), segurança (SAST/DAST) |
 | **Operação** | `dotnet run` | Docker Compose, logs estruturados | OpenTelemetry, IaC (Terraform/AWS) |
-| **Status** | ✅ Concluída | 🚧 Em desenvolvimento | ⏳ Planejada |
+| **Status** | ✅ Concluída | ✅ Concluída | ⏳ Planejada |
 
 Cada pasta é um projeto independente, com README próprio explicando o que foi feito, como rodar e **quais limitações motivaram a versão seguinte**.
 
@@ -43,14 +44,33 @@ dotnet run --project src/Ingressa.Api --launch-profile http
 # abra http://localhost:5080  (cliente@ingressa.dev / Senha@123)
 ```
 
-![Vitrine da versão Júnior](junior/docs/screenshots/01-vitrine.png)
+Para a versão Pleno (precisa do Docker):
+
+```bash
+cd ingressa/pleno
+docker compose up --build
+# abra http://localhost:8080
+```
+
+| Júnior | Pleno |
+|---|---|
+| ![Vitrine da versão Júnior](junior/docs/screenshots/01-vitrine.png) | ![Vitrine da versão Pleno](pleno/docs/screenshots/01-vitrine.png) |
+
+### O mesmo problema, duas respostas
+
+200 compras simultâneas para um setor com 10 lugares ([experimento](pleno/docs/experimentos/concorrencia-no-estoque.md)):
+
+| | Compras aceitas | Lugares registrados |
+|---|---|---|
+| Júnior (ler → calcular → gravar) | **200** | 9 |
+| Pleno (UPDATE atômico) | **10** | 10 |
 
 ## Estrutura do repositório
 
 ```
 ingressa/
 ├── junior/   → API REST + EF Core + SQLite + JWT + vitrine em JavaScript
-├── pleno/    → (em desenvolvimento)
+├── pleno/    → camadas, PostgreSQL, reserva e pagamento, RabbitMQ + outbox, React, Docker
 ├── senior/   → (planejada)
 └── docs/     → decisões de arquitetura (ADRs) e roadmap
 ```
