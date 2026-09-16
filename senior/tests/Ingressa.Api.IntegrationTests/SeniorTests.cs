@@ -9,6 +9,7 @@ using Ingressa.Application.Fila;
 using Ingressa.Application.Pedidos;
 using Ingressa.Domain.Eventos;
 using Ingressa.Domain.Usuarios;
+using Ingressa.Infrastructure.Idempotencia;
 using Ingressa.Infrastructure.Manutencao;
 using Ingressa.Infrastructure.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -186,6 +187,31 @@ public sealed class IdempotenciaTests(ApiFactory api)
         var resposta = await cliente.PostAsJsonAsync("/api/pedidos", new CriarPedidoRequest(1, [new ItemPedidoRequest(1, 1)]));
 
         Assert.Equal(HttpStatusCode.BadRequest, resposta.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChaveAbandonadaPorQuedaDoProcesso_PodeSerRetomada()
+    {
+        var (_, usuarioId) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
+        var chave = Guid.NewGuid().ToString();
+
+        // Simula um processo que registrou a chave e caiu antes de concluir.
+        var primeira = await api.NoEscopoAsync(sp => sp.GetRequiredService<ControleDeIdempotencia>()
+            .ReivindicarAsync(usuarioId, chave, "POST /api/pedidos", "hash", default));
+        var logoDepois = await api.NoEscopoAsync(sp => sp.GetRequiredService<ControleDeIdempotencia>()
+            .ReivindicarAsync(usuarioId, chave, "POST /api/pedidos", "hash", default));
+
+        ReivindicacaoDeChave retomada;
+        using (api.Relogio.Adiantar(TimeSpan.FromMinutes(3)))
+        {
+            retomada = await api.NoEscopoAsync(sp => sp.GetRequiredService<ControleDeIdempotencia>()
+                .ReivindicarAsync(usuarioId, chave, "POST /api/pedidos", "hash", default));
+        }
+
+        Assert.Equal(SituacaoDaChave.Nova, primeira.Situacao);
+        Assert.Equal(SituacaoDaChave.EmAndamento, logoDepois.Situacao);
+        Assert.Equal(SituacaoDaChave.Nova, retomada.Situacao);
+        Assert.Equal(primeira.Id, retomada.Id);
     }
 
     [Fact]

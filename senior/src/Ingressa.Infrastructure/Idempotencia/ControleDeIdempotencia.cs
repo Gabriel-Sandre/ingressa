@@ -13,6 +13,12 @@ public class RequisicaoIdempotente
 {
     public static readonly TimeSpan Retencao = TimeSpan.FromHours(24);
 
+    /// <summary>
+    /// Nenhuma requisição legítima fica tanto tempo em execução: uma chave "em andamento"
+    /// mais antiga que isso pertence a um processo que caiu, e pode ser retomada.
+    /// </summary>
+    public static readonly TimeSpan TempoMaximoEmAndamento = TimeSpan.FromMinutes(2);
+
     public long Id { get; private set; }
     public int UsuarioId { get; private set; }
     public string Chave { get; private set; } = string.Empty;
@@ -73,9 +79,24 @@ public sealed class ControleDeIdempotencia(IngressaDbContext db, TimeProvider re
             return new ReivindicacaoDeChave(SituacaoDaChave.Divergente, existente.Id, null, null);
         }
 
-        return existente.StatusHttp is null
-            ? new ReivindicacaoDeChave(SituacaoDaChave.EmAndamento, existente.Id, null, null)
-            : new ReivindicacaoDeChave(SituacaoDaChave.Concluida, existente.Id, existente.StatusHttp, existente.Resposta);
+        if (existente.StatusHttp is not null)
+        {
+            return new ReivindicacaoDeChave(SituacaoDaChave.Concluida, existente.Id, existente.StatusHttp, existente.Resposta);
+        }
+
+        if (agora - existente.CriadaEm > RequisicaoIdempotente.TempoMaximoEmAndamento)
+        {
+            // Retomada atômica: só uma das tentativas concorrentes consegue trocar a data.
+            var retomadas = await db.RequisicoesIdempotentes
+                .Where(r => r.Id == existente.Id && r.StatusHttp == null && r.CriadaEm == existente.CriadaEm)
+                .ExecuteUpdateAsync(u => u.SetProperty(r => r.CriadaEm, agora), ct);
+            if (retomadas == 1)
+            {
+                return new ReivindicacaoDeChave(SituacaoDaChave.Nova, existente.Id, null, null);
+            }
+        }
+
+        return new ReivindicacaoDeChave(SituacaoDaChave.EmAndamento, existente.Id, null, null);
     }
 
     public Task ConcluirAsync(long id, int statusHttp, string resposta, CancellationToken ct)
