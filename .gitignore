@@ -486,3 +486,7 @@ $RECYCLE.BIN/
 *.db-shm
 *.db-wal
 .env
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
