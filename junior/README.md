@@ -72,7 +72,7 @@ Para recomeçar do zero, apague o arquivo `src/Ingressa.Api/ingressa.db`.
 | `Jwt:Audiencia` | `Jwt__Audiencia` | `Ingressa.Clientes` | Audiência do token |
 | `Jwt:ExpiracaoMinutos` | `Jwt__ExpiracaoMinutos` | `60` | Validade do token (1 a 1440) |
 
-A chave de desenvolvimento está em `appsettings.Development.json`. Fora do ambiente de desenvolvimento a aplicação **se recusa a iniciar** sem uma chave válida:
+Nenhuma chave fica no repositório. Em desenvolvimento, sem chave configurada, a API gera uma temporária (as sessões caem a cada reinício). Fora do ambiente de desenvolvimento a aplicação **se recusa a iniciar** sem uma chave válida:
 
 ```bash
 dotnet user-secrets set "Jwt:Chave" "<uma chave longa e aleatória>" --project src/Ingressa.Api

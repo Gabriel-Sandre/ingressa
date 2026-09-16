@@ -75,4 +75,5 @@ jobs:
     needs: [pleno-backend, pleno-web]
     steps:
       - uses: actions/checkout@v4
+      - run: cp pleno/.env.example pleno/.env
       - run: docker compose -f pleno/compose.yaml build

@@ -15,6 +15,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Configuração obrigatória ----------
 var jwt = builder.Configuration.GetSection(OpcoesJwt.Secao).Get<OpcoesJwt>() ?? new OpcoesJwt();
+// Sem chave configurada em desenvolvimento, gera uma temporária: nenhuma chave fica no repositório.
+// Em produção a falta da chave impede a aplicação de subir (Validar abaixo).
+var chaveJwtTemporaria = false;
+if (string.IsNullOrEmpty(jwt.Chave) && builder.Environment.IsDevelopment())
+{
+    jwt.Chave = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48));
+    chaveJwtTemporaria = true;
+}
 jwt.Validar();
 builder.Services.AddSingleton(jwt);
 
@@ -55,6 +63,11 @@ builder.Services.AddExceptionHandler<TratadorDeExcecoes>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+if (chaveJwtTemporaria)
+{
+    app.Logger.LogWarning("Jwt:Chave não configurada: usando uma chave temporária. As sessões expiram a cada reinício.");
+}
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler();

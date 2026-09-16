@@ -42,6 +42,7 @@ Pré-requisito: **Docker Desktop**.
 
 ```bash
 cd pleno
+cp .env.example .env      # troque as senhas; o .env não vai para o Git
 docker compose up --build
 ```
 
@@ -49,7 +50,7 @@ docker compose up --build
 |---|---|
 | http://localhost:8080 | Interface (React) |
 | http://localhost:5180/scalar | Documentação interativa da API |
-| http://localhost:15672 | Painel do RabbitMQ (`ingressa` / `ingressa`) |
+| http://localhost:15672 | Painel do RabbitMQ (usuário `ingressa`, senha `RABBITMQ_PASSWORD` do `.env`) |
 | http://localhost:8025 | Caixa de e-mails de teste (Mailpit) |
 
 Contas de demonstração (senha `Senha@123`):
@@ -68,10 +69,15 @@ No pagamento, escolha um dos cartões de teste: aprovado, recusado ou sem saldo.
 ```bash
 cd pleno
 docker compose up -d postgres rabbitmq mailpit     # só a infraestrutura
+# As senhas não ficam no appsettings: use as mesmas do .env (PowerShell: $env:PGPASSWORD = "...")
+export PGPASSWORD=<POSTGRES_PASSWORD do .env>             # lida pelo Npgsql
+export RabbitMq__Senha=<RABBITMQ_PASSWORD do .env>
 dotnet run --project src/Ingressa.Api --launch-profile http      # API em :5180
 dotnet run --project src/Ingressa.Worker --launch-profile http   # outro terminal
 cd web && npm install && npm run dev                              # interface em :5173
 ```
+
+Sem `Jwt:Chave` configurada, a API em Development gera uma chave temporária (as sessões caem a cada reinício).
 
 ### Migrations
 
