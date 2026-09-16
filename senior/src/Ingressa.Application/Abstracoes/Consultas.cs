@@ -34,3 +34,9 @@ public interface IEnviadorDeEmail
 {
     Task EnviarAsync(string para, string assunto, string corpoTexto, CancellationToken ct);
 }
+
+/// <summary>Avisa o cache de leitura que um evento mudou.</summary>
+public interface IInvalidadorDeCache
+{
+    Task EventoAlteradoAsync(int eventoId, CancellationToken ct);
+}
