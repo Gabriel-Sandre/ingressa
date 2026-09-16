@@ -1,5 +1,6 @@
 using System.Globalization;
 using Ingressa.Application.Abstracoes;
+using Ingressa.Application.Observabilidade;
 using Ingressa.Domain.Comum;
 using Microsoft.Extensions.Logging;
 
@@ -67,6 +68,7 @@ public sealed class ProcessamentoDePedidosService(
 
         if (expirados > 0)
         {
+            Metricas.ReservasExpiradas.Add(expirados);
             logger.LogInformation("{Quantidade} reserva(s) expirada(s)", expirados);
         }
 
@@ -83,6 +85,7 @@ public sealed class ProcessamentoDePedidosService(
         }
 
         await unidade.SalvarAsync(ct);
+        Metricas.IngressosEmitidos.Add(pedido.Ingressos.Count);
         logger.LogInformation("Pedido {PedidoId}: {Quantidade} ingresso(s) emitido(s)", pedidoId, pedido.Ingressos.Count);
         return true;
     }

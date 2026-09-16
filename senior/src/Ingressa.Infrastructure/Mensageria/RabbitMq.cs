@@ -159,6 +159,9 @@ public sealed class PublicadorRabbitMq(ConexaoRabbitMq conexao) : IPublicadorDeM
                 Type = mensagem.Tipo,
                 ContentType = "application/json",
                 CorrelationId = mensagem.CorrelacaoId,
+                Headers = mensagem.CorrelacaoId is null
+                    ? null
+                    : new Dictionary<string, object?> { ["traceparent"] = mensagem.CorrelacaoId },
                 Timestamp = new AmqpTimestamp(new DateTimeOffset(mensagem.OcorridoEm).ToUnixTimeSeconds())
             };
 

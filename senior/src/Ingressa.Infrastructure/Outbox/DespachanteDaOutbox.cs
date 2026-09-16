@@ -1,4 +1,7 @@
+using System.Diagnostics;
+using Ingressa.Application.Observabilidade;
 using Ingressa.Infrastructure.Mensageria;
+using Ingressa.Infrastructure.Observabilidade;
 using Ingressa.Infrastructure.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,6 +68,10 @@ public sealed class DespachanteDaOutbox(
 
         foreach (var mensagem in mensagens)
         {
+            using var atividade = Metricas.Rastreamento.StartActivity(
+                $"{mensagem.Tipo} publicar", ActivityKind.Producer, Telemetria.ContextoPai(mensagem.CorrelacaoId));
+            atividade?.SetTag("messaging.system", "rabbitmq");
+            atividade?.SetTag("messaging.message.id", mensagem.MensagemId.ToString());
             try
             {
                 await publicador.PublicarAsync(mensagem, ct);
