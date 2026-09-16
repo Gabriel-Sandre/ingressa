@@ -10,6 +10,6 @@ internal sealed class FabricaEmTempoDeProjeto : IDesignTimeDbContextFactory<Ingr
 {
     public IngressaDbContext CreateDbContext(string[] args) =>
         new(new DbContextOptionsBuilder<IngressaDbContext>()
-            .UseNpgsql("Host=localhost;Database=ingressa;Username=ingressa;Password=ingressa")
+            .UseNpgsql("Host=localhost;Database=ingressa;Username=ingressa")
             .Options);
 }
