@@ -11,7 +11,7 @@ public class ProcessamentoDePedidosTests
     {
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync();
-        var pedido = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, quantidade)), default);
+        var pedido = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, quantidade)), null, default);
         return (evento, pedido, cliente);
     }
 
@@ -20,7 +20,7 @@ public class ProcessamentoDePedidosTests
     {
         var (evento, pedido, cliente) = await ReservaAsync(2);
         _c.Relogio.Avancar(TimeSpan.FromMinutes(5));
-        var recente = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), default);
+        var recente = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), null, default);
         _c.Relogio.Avancar(TimeSpan.FromMinutes(5)); // a primeira venceu; a segunda ainda não
 
         var expirados = await _c.Processamento.ExpirarReservasVencidasAsync(default);

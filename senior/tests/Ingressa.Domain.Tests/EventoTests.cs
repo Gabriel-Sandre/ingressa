@@ -148,3 +148,16 @@ public class EventoTests
         Assert.Throws<AcessoNegadoException>(() => evento.GarantirQuePertenceA(2));
     }
 }
+
+public class EventoComFilaTests
+{
+    [Fact]
+    public void FilaVirtual_PodeSerLigadaEDesligada()
+    {
+        var evento = Evento.Criar(1, Dados() with { FilaVirtual = true }, Agora);
+        Assert.True(evento.FilaVirtual);
+
+        evento.Atualizar(Dados(), Agora);
+        Assert.False(evento.FilaVirtual);
+    }
+}

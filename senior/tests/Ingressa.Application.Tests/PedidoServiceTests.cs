@@ -14,7 +14,7 @@ public class PedidoServiceTests
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync();
 
-        var pedido = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 2), (1, 1)), default);
+        var pedido = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 2), (1, 1)), null, default);
 
         Assert.Equal(StatusPedido.AguardandoPagamento, pedido.Status);
         Assert.Equal(500m, pedido.Total);
@@ -31,7 +31,7 @@ public class PedidoServiceTests
         var evento = await _c.EventoAsync(capacidadeVip: 1);
 
         var erro = await Assert.ThrowsAsync<ConflitoException>(() =>
-            _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 3), (1, 2)), default));
+            _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 3), (1, 2)), null, default));
 
         Assert.Contains("VIP", erro.Message);
         Assert.Equal(0, evento.Setores[0].Ocupados); // a Pista foi ocupada e depois desfeita
@@ -52,7 +52,7 @@ public class PedidoServiceTests
         {
             try
             {
-                await _c.Pedidos.ReservarAsync(id, Cenario.Pedido(evento, (0, 1)), default);
+                await _c.Pedidos.ReservarAsync(id, Cenario.Pedido(evento, (0, 1)), null, default);
                 return true;
             }
             catch (ConflitoException)
@@ -76,7 +76,7 @@ public class PedidoServiceTests
             new Eventos.EventoRequest("Rascunho", null, "Local", "Cidade", _c.Relogio.Agora.AddDays(3)), default);
 
         await Assert.ThrowsAsync<NaoEncontradoException>(() =>
-            _c.Pedidos.ReservarAsync(cliente.Id, new CriarPedidoRequest(rascunho.Id, [new ItemPedidoRequest(1, 1)]), default));
+            _c.Pedidos.ReservarAsync(cliente.Id, new CriarPedidoRequest(rascunho.Id, [new ItemPedidoRequest(1, 1)]), null, default));
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class PedidoServiceTests
     {
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync();
-        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), default);
+        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), null, default);
 
         var pago = await _c.Pedidos.PagarAsync(cliente.Id, reserva.Id, new PagamentoRequest("tok"), default);
 
@@ -98,7 +98,7 @@ public class PedidoServiceTests
     {
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync();
-        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), default);
+        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), null, default);
         _c.Gateway.Aprovar = false;
 
         var erro = await Assert.ThrowsAsync<RegraDeNegocioException>(() =>
@@ -114,7 +114,7 @@ public class PedidoServiceTests
     {
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync();
-        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), default);
+        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), null, default);
         _c.Relogio.Avancar(Pedido.PrazoDaReserva);
 
         await Assert.ThrowsAsync<RegraDeNegocioException>(() =>
@@ -128,7 +128,7 @@ public class PedidoServiceTests
     {
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync();
-        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), default);
+        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), null, default);
 
         // O gateway demora e, enquanto isso, o prazo acaba.
         _c.Gateway.DuranteACobranca = () => _c.Relogio.Avancar(Pedido.PrazoDaReserva);
@@ -146,7 +146,7 @@ public class PedidoServiceTests
         var dono = await _c.ClienteAsync();
         var outro = await _c.ClienteAsync("outro@teste.com");
         var evento = await _c.EventoAsync();
-        var reserva = await _c.Pedidos.ReservarAsync(dono.Id, Cenario.Pedido(evento, (0, 1)), default);
+        var reserva = await _c.Pedidos.ReservarAsync(dono.Id, Cenario.Pedido(evento, (0, 1)), null, default);
 
         await Assert.ThrowsAsync<NaoEncontradoException>(() =>
             _c.Pedidos.PagarAsync(outro.Id, reserva.Id, new PagamentoRequest("tok"), default));
@@ -159,7 +159,7 @@ public class PedidoServiceTests
     {
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync();
-        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 3)), default);
+        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 3)), null, default);
         await _c.Pedidos.PagarAsync(cliente.Id, reserva.Id, new PagamentoRequest("tok"), default);
 
         var cancelado = await _c.Pedidos.CancelarAsync(cliente.Id, reserva.Id, default);
@@ -174,7 +174,7 @@ public class PedidoServiceTests
     {
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync(dias: 1);
-        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 2)), default);
+        var reserva = await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 2)), null, default);
         await _c.Pedidos.PagarAsync(cliente.Id, reserva.Id, new PagamentoRequest("tok"), default);
         _c.Relogio.Avancar(TimeSpan.FromHours(2));
 
