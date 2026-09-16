@@ -1,0 +1,75 @@
+# Ambiente completo do Ingressa (versão Sênior).
+#   docker compose up --build
+# Interface: http://localhost:8080 · API/Scalar: http://localhost:5180/scalar (só em Development)
+# RabbitMQ:  http://localhost:15672 · E-mails: http://localhost:8025
+
+name: ingressa-senior
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ingressa
+      POSTGRES_USER: ingressa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ingressa}
+    ports: ["5432:5432"]
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ingressa -d ingressa"]
+      interval: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ingressa
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-ingressa}
+    ports: ["5672:5672", "15672:15672"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["1025:1025", "8025:8025"]
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/dotnet.Dockerfile
+      args: { PROJETO: Ingressa.Api }
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${AMBIENTE:-Development}
+      ConnectionStrings__Ingressa: Host=postgres;Database=ingressa;Username=ingressa;Password=${POSTGRES_PASSWORD:-ingressa}
+      Jwt__Chave: ${JWT_CHAVE:-chave-local-do-docker-compose-troque-em-producao}
+      Banco__DadosDeDemonstracao: "true"
+    ports: ["5180:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  worker:
+    build:
+      context: .
+      dockerfile: deploy/dotnet.Dockerfile
+      args: { PROJETO: Ingressa.Worker }
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${AMBIENTE:-Development}
+      ConnectionStrings__Ingressa: Host=postgres;Database=ingressa;Username=ingressa;Password=${POSTGRES_PASSWORD:-ingressa}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Senha: ${RABBITMQ_PASSWORD:-ingressa}
+      Email__Host: mailpit
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      api: { condition: service_started }
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    ports: ["8080:80"]
+    depends_on: [api]
+
+volumes:
+  postgres:

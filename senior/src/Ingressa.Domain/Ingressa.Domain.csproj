@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Camada de domínio: regras de negócio puras, sem dependência de framework. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ingressa.Domain.Tests" />
+  </ItemGroup>
+</Project>
