@@ -72,11 +72,13 @@ ingressa/
 ├── junior/   → API REST + EF Core + SQLite + JWT + vitrine em JavaScript
 ├── pleno/    → camadas, PostgreSQL, reserva e pagamento, RabbitMQ + outbox, React, Docker
 ├── senior/   → (planejada)
-└── docs/     → decisões de arquitetura (ADRs) e roadmap
+├── docs/     → decisões de arquitetura (ADRs) e roadmap
+└── pdf/      → estudo de caso completo (análise, decisões e evolução)
 ```
 
 ## Documentação
 
+- [Estudo de caso em PDF](pdf/INGRESSA_ANALISE_E_DESENVOLVIMENTO.pdf)
 - [Roadmap](docs/roadmap.md)
 - [Decisões de arquitetura (ADRs)](docs/adr/)
 
