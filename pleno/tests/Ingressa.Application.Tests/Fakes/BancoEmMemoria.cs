@@ -11,7 +11,8 @@ namespace Ingressa.Application.Tests.Fakes;
 
 /// <summary>
 /// Implementação em memória das portas de persistência, suficiente para testar os casos de uso
-/// sem banco. Reproduz o que importa para as regras: Ids, transação com rollback,
+/// sem banco. Reproduz o que importa para as regras: Ids, transação com rollback
+/// (por registro de desfazer, para funcionar com transações simultâneas),
 /// operações atômicas de estoque e a coleta dos eventos de domínio (outbox).
 /// O comportamento real (SQL, xmin, SKIP LOCKED) é coberto pelos testes de integração.
 /// </summary>
@@ -20,7 +21,8 @@ public sealed class BancoEmMemoria :
     IEstoque, IUnidadeDeTrabalho, IConsultasDeEventos, IConsultasDePedidos
 {
     private readonly object _trava = new();
-    private readonly AsyncLocal<bool> _emTransacao = new();
+    // Cada transação guarda as ações que desfazem o que ela fez (como um log de undo).
+    private readonly AsyncLocal<List<Action>?> _desfazer = new();
     private int _proximoId = 1;
 
     public List<Usuario> Usuarios { get; } = [];
@@ -63,7 +65,9 @@ public sealed class BancoEmMemoria :
 
             foreach (var entidade in Usuarios.Cast<Entidade>().Concat(Eventos).Concat(Pedidos))
             {
-                Outbox.AddRange(entidade.Eventos);
+                var novos = entidade.Eventos.ToList();
+                Outbox.AddRange(novos);
+                AoDesfazer(() => novos.ForEach(e => Outbox.Remove(e)));
                 entidade.LimparEventos();
             }
         }
@@ -73,22 +77,13 @@ public sealed class BancoEmMemoria :
 
     public async Task<T> EmTransacaoAsync<T>(Func<CancellationToken, Task<T>> operacao, CancellationToken ct)
     {
-        if (_emTransacao.Value)
+        if (_desfazer.Value is not null)
         {
             return await operacao(ct);
         }
 
-        Dictionary<Setor, int> ocupados;
-        int pedidos;
-        int outbox;
-        lock (_trava)
-        {
-            ocupados = Eventos.SelectMany(e => e.Setores).ToDictionary(s => s, s => s.Ocupados);
-            pedidos = Pedidos.Count;
-            outbox = Outbox.Count;
-        }
-
-        _emTransacao.Value = true;
+        var desfazer = new List<Action>();
+        _desfazer.Value = desfazer;
         try
         {
             return await operacao(ct);
@@ -97,22 +92,21 @@ public sealed class BancoEmMemoria :
         {
             lock (_trava)
             {
-                foreach (var (setor, valor) in ocupados)
+                for (var i = desfazer.Count - 1; i >= 0; i--)
                 {
-                    Definir(setor, nameof(Setor.Ocupados), valor);
+                    desfazer[i]();
                 }
-
-                Pedidos.RemoveRange(pedidos, Pedidos.Count - pedidos);
-                Outbox.RemoveRange(outbox, Outbox.Count - outbox);
             }
 
             throw;
         }
         finally
         {
-            _emTransacao.Value = false;
+            _desfazer.Value = null;
         }
     }
+
+    private void AoDesfazer(Action acao) => _desfazer.Value?.Add(acao);
 
     // ---------- Estoque (atômico, como o UPDATE condicional) ----------
 
@@ -127,6 +121,7 @@ public sealed class BancoEmMemoria :
             }
 
             Definir(setor, nameof(Setor.Ocupados), setor.Ocupados + quantidade);
+            AoDesfazer(() => Definir(setor, nameof(Setor.Ocupados), setor.Ocupados - quantidade));
             return Task.FromResult(true);
         }
     }
@@ -142,6 +137,7 @@ public sealed class BancoEmMemoria :
             }
 
             Definir(setor, nameof(Setor.Ocupados), setor.Ocupados - quantidade);
+            AoDesfazer(() => Definir(setor, nameof(Setor.Ocupados), setor.Ocupados + quantidade));
         }
 
         return Task.CompletedTask;
@@ -190,6 +186,7 @@ public sealed class BancoEmMemoria :
         lock (_trava)
         {
             Pedidos.Add(pedido);
+            AoDesfazer(() => Pedidos.Remove(pedido));
         }
     }
 
