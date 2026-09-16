@@ -3,6 +3,7 @@ using Ingressa.Domain.Comum;
 using Ingressa.Domain.Eventos;
 using Ingressa.Domain.Pedidos;
 using Ingressa.Domain.Usuarios;
+using Ingressa.Infrastructure.Idempotencia;
 using Ingressa.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,7 @@ public class IngressaDbContext(DbContextOptions<IngressaDbContext> options) : Db
     public DbSet<ItemPedido> ItensPedido => Set<ItemPedido>();
     public DbSet<Ingresso> Ingressos => Set<Ingresso>();
     public DbSet<MensagemOutbox> MensagensOutbox => Set<MensagemOutbox>();
+    public DbSet<RequisicaoIdempotente> RequisicoesIdempotentes => Set<RequisicaoIdempotente>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(IngressaDbContext).Assembly);
@@ -46,7 +48,8 @@ public class IngressaDbContext(DbContextOptions<IngressaDbContext> options) : Db
             throw new InvalidOperationException("Entidades novas não podem registrar eventos de domínio antes de serem gravadas.");
         }
 
-        var correlacao = Activity.Current?.TraceId.ToString();
+        // O identificador W3C (traceparent) permite continuar o mesmo rastreamento no Worker.
+        var correlacao = Activity.Current?.Id;
         foreach (var entidade in entidades)
         {
             foreach (var evento in entidade.Eventos)

@@ -1,4 +1,5 @@
 using Ingressa.Api.Auth;
+using Ingressa.Api.Infra;
 using Ingressa.Application.Pedidos;
 using Ingressa.Domain.Usuarios;
 using Microsoft.AspNetCore.Authorization;
@@ -12,15 +13,25 @@ namespace Ingressa.Api.Controllers;
 [Authorize(Roles = nameof(PerfilUsuario.Cliente))]
 public sealed class PedidosController(PedidoService pedidoService) : ControllerBase
 {
-    /// <summary>Reserva os ingressos por 10 minutos. O pedido fica aguardando pagamento.</summary>
+    public const string CabecalhoDoPasse = "X-Passe-Fila";
+
+    /// <summary>
+    /// Reserva os ingressos por 10 minutos. O pedido fica aguardando pagamento.
+    /// Exige <c>Idempotency-Key</c>; em eventos com fila virtual, também o cabeçalho <c>X-Passe-Fila</c>.
+    /// </summary>
     [HttpPost]
+    [Idempotente]
+    [LimiteDistribuido("reservas")]
     [ProducesResponseType<PedidoResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<ActionResult<PedidoResponse>> Reservar(CriarPedidoRequest request, CancellationToken ct)
+    public async Task<ActionResult<PedidoResponse>> Reservar(
+        CriarPedidoRequest request,
+        [FromHeader(Name = CabecalhoDoPasse)] string? passe,
+        CancellationToken ct)
     {
-        var pedido = await pedidoService.ReservarAsync(User.ObterUsuarioId(), request, ct);
+        var pedido = await pedidoService.ReservarAsync(User.ObterUsuarioId(), request, passe, ct);
         return CreatedAtAction(nameof(Obter), new { id = pedido.Id }, pedido);
     }
 
@@ -30,6 +41,7 @@ public sealed class PedidosController(PedidoService pedidoService) : ControllerB
     /// Os ingressos são emitidos em segundo plano logo depois.
     /// </summary>
     [HttpPost("{id:int}/pagamento")]
+    [Idempotente]
     [ProducesResponseType<PedidoResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
