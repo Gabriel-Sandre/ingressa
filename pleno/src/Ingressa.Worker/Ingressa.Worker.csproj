@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!--
+    Processo separado da API para o trabalho assíncrono: outbox, emissão de ingressos,
+    e-mails e expiração de reservas. Usa o SDK Web só para expor /health.
+  -->
+  <PropertyGroup>
+    <UserSecretsId>ingressa-pleno-worker-51c0d2</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ingressa.Application\Ingressa.Application.csproj" />
+    <ProjectReference Include="..\Ingressa.Infrastructure\Ingressa.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
