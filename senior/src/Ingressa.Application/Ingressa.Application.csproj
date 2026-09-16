@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Casos de uso. Conhece o domínio e define as interfaces que a infraestrutura implementa. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Ingressa.Domain\Ingressa.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ingressa.Application.Tests" />
+  </ItemGroup>
+</Project>
