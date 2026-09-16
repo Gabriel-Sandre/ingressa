@@ -15,6 +15,12 @@ public class Evento : Entidade
     public string Cidade { get; private set; } = string.Empty;
     public DateTime DataInicio { get; private set; }
     public bool Publicado { get; private set; }
+
+    /// <summary>
+    /// Eventos de alta demanda usam a fila virtual: para reservar, o comprador
+    /// precisa de um passe liberado pela sala de espera.
+    /// </summary>
+    public bool FilaVirtual { get; private set; }
     public DateTime CriadoEm { get; private set; }
 
     public IReadOnlyList<Setor> Setores => _setores;
@@ -107,6 +113,7 @@ public class Evento : Entidade
         Local = Guarda.TextoObrigatorio(dados.Local, "O local", 150);
         Cidade = Guarda.TextoObrigatorio(dados.Cidade, "A cidade", 100);
         DataInicio = data;
+        FilaVirtual = dados.FilaVirtual;
     }
 
     private static void GarantirFuturo(DateTime data, DateTime agora)
@@ -118,4 +125,5 @@ public class Evento : Entidade
     }
 }
 
-public sealed record DadosDoEvento(string Titulo, string? Descricao, string Local, string Cidade, DateTime DataInicio);
+public sealed record DadosDoEvento(
+    string Titulo, string? Descricao, string Local, string Cidade, DateTime DataInicio, bool FilaVirtual = false);

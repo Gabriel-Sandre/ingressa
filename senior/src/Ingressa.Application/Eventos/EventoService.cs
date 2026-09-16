@@ -10,6 +10,7 @@ public sealed class EventoService(
     IUsuarioRepositorio usuarios,
     IConsultasDeEventos consultas,
     IUnidadeDeTrabalho unidade,
+    IInvalidadorDeCache cache,
     TimeProvider relogio)
 {
     private DateTime Agora => relogio.GetUtcNow().UtcDateTime;
@@ -47,6 +48,7 @@ public sealed class EventoService(
         var evento = Evento.Criar(organizadorId, ParaDados(request), Agora);
         eventos.Adicionar(evento);
         await unidade.SalvarAsync(ct);
+        await cache.EventoAlteradoAsync(evento.Id, ct);
         return MapeamentoDeEventos.ParaDetalhe(evento);
     }
 
@@ -55,6 +57,7 @@ public sealed class EventoService(
         var evento = await CarregarDoOrganizadorAsync(organizadorId, id, ct);
         evento.Atualizar(ParaDados(request), Agora);
         await unidade.SalvarAsync(ct);
+        await cache.EventoAlteradoAsync(id, ct);
         return MapeamentoDeEventos.ParaDetalhe(evento);
     }
 
@@ -64,6 +67,7 @@ public sealed class EventoService(
         evento.GarantirQuePodeSerExcluido();
         eventos.Remover(evento);
         await unidade.SalvarAsync(ct);
+        await cache.EventoAlteradoAsync(id, ct);
     }
 
     public async Task<EventoDetalheResponse> PublicarAsync(int organizadorId, int id, CancellationToken ct)
@@ -71,6 +75,7 @@ public sealed class EventoService(
         var evento = await CarregarDoOrganizadorAsync(organizadorId, id, ct);
         evento.Publicar(Agora);
         await unidade.SalvarAsync(ct);
+        await cache.EventoAlteradoAsync(id, ct);
         return MapeamentoDeEventos.ParaDetalhe(evento);
     }
 
@@ -79,6 +84,7 @@ public sealed class EventoService(
         var evento = await CarregarDoOrganizadorAsync(organizadorId, eventoId, ct);
         var setor = evento.AdicionarSetor(request.Nome, request.Preco, request.Capacidade);
         await unidade.SalvarAsync(ct);
+        await cache.EventoAlteradoAsync(eventoId, ct);
         return MapeamentoDeEventos.ParaResponse(setor);
     }
 
@@ -89,6 +95,7 @@ public sealed class EventoService(
         var setor = evento.ObterSetor(setorId);
         setor.Atualizar(request.Nome, request.Preco, request.Capacidade);
         await unidade.SalvarAsync(ct);
+        await cache.EventoAlteradoAsync(eventoId, ct);
         return MapeamentoDeEventos.ParaResponse(setor);
     }
 
@@ -97,6 +104,7 @@ public sealed class EventoService(
         var evento = await CarregarDoOrganizadorAsync(organizadorId, eventoId, ct);
         evento.RemoverSetor(setorId);
         await unidade.SalvarAsync(ct);
+        await cache.EventoAlteradoAsync(eventoId, ct);
     }
 
     private async Task<Evento> CarregarDoOrganizadorAsync(int organizadorId, int id, CancellationToken ct)
@@ -106,5 +114,5 @@ public sealed class EventoService(
         return evento;
     }
 
-    private static DadosDoEvento ParaDados(EventoRequest r) => new(r.Titulo, r.Descricao, r.Local, r.Cidade, r.DataInicio);
+    private static DadosDoEvento ParaDados(EventoRequest r) => new(r.Titulo, r.Descricao, r.Local, r.Cidade, r.DataInicio, r.FilaVirtual);
 }

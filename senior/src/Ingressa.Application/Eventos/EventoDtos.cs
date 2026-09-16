@@ -7,7 +7,8 @@ public sealed record EventoRequest(
     [StringLength(4000, ErrorMessage = "A descrição pode ter no máximo 4000 caracteres.")] string? Descricao,
     [Required(ErrorMessage = "Informe o local."), StringLength(150)] string Local,
     [Required(ErrorMessage = "Informe a cidade."), StringLength(100)] string Cidade,
-    DateTime DataInicio);
+    DateTime DataInicio,
+    bool FilaVirtual = false);
 
 public sealed record SetorRequest(
     [Required(ErrorMessage = "Informe o nome do setor."), StringLength(80, MinimumLength = 2, ErrorMessage = "O nome do setor deve ter entre 2 e 80 caracteres.")] string Nome,
@@ -17,7 +18,8 @@ public sealed record SetorRequest(
 public sealed record SetorResponse(int Id, string Nome, decimal Preco, int Capacidade, int Disponiveis);
 
 public sealed record EventoResumoResponse(
-    int Id, string Titulo, string Local, string Cidade, DateTime DataInicio, decimal? PrecoAPartirDe, bool Esgotado);
+    int Id, string Titulo, string Local, string Cidade, DateTime DataInicio, decimal? PrecoAPartirDe, bool Esgotado,
+    bool FilaVirtual);
 
 public sealed record EventoDetalheResponse(
     int Id,
@@ -28,6 +30,7 @@ public sealed record EventoDetalheResponse(
     string Cidade,
     DateTime DataInicio,
     bool Publicado,
+    bool FilaVirtual,
     IReadOnlyList<SetorResponse> Setores);
 
 public enum OrdemEventos
