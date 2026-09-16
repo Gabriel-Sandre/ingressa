@@ -3,7 +3,6 @@ using Ingressa.Api.Infra;
 using Ingressa.Application.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 
 namespace Ingressa.Api.Controllers;
 
@@ -16,7 +15,7 @@ public sealed class AuthController(AuthService authService) : ControllerBase
     public const string CookieDeSessao = "ingressa_sessao";
 
     [HttpPost("registrar")]
-    [EnableRateLimiting(LimiteDeRequisicoes.Autenticacao)]
+    [LimiteDistribuido("autenticacao")]
     [ProducesResponseType<UsuarioResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<UsuarioResponse>> Registrar(RegistrarRequest request, CancellationToken ct)
@@ -27,7 +26,7 @@ public sealed class AuthController(AuthService authService) : ControllerBase
 
     /// <summary>Retorna o access token (15 min) e grava o refresh token (7 dias) em cookie.</summary>
     [HttpPost("login")]
-    [EnableRateLimiting(LimiteDeRequisicoes.Autenticacao)]
+    [LimiteDistribuido("autenticacao")]
     [ProducesResponseType<SessaoResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
