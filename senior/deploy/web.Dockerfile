@@ -5,7 +5,9 @@ RUN npm ci
 COPY web/ .
 RUN npm run build
 
-FROM nginx:1.29-alpine
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+# Imagem sem root: escuta na 8080 e roda como usuário "nginx".
+FROM nginxinc/nginx-unprivileged:1.29-alpine
+ENV API_UPSTREAM=api:8080
+COPY deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /web/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080

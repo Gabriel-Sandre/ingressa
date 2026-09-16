@@ -20,6 +20,12 @@ RUN dotnet publish src/${PROJETO}/${PROJETO}.csproj -c Release -o /app --no-rest
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 ARG PROJETO
+# curl só para o health check do container.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+# Certificados da AWS para validar o TLS do RDS (SSL Mode=VerifyFull).
+ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     DOTNET_ENTRYPOINT=${PROJETO}.dll
 WORKDIR /app
@@ -27,4 +33,5 @@ COPY --from=build /app .
 # Usuário sem privilégios de administrador, já presente nas imagens oficiais.
 USER $APP_UID
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "exec dotnet \"$DOTNET_ENTRYPOINT\""]
+# "$@" repassa argumentos extras, ex.: docker run ... --migrar-e-sair
+ENTRYPOINT ["sh", "-c", "exec dotnet \"$DOTNET_ENTRYPOINT\" \"$@\"", "--"]

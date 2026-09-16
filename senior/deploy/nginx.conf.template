@@ -1,14 +1,29 @@
+# API_UPSTREAM vem do ambiente (a imagem do nginx aplica envsubst nos templates ao iniciar).
+# No Docker Compose, "api" resolve para todas as réplicas; na AWS, o ECS Service Connect faz o mesmo papel.
+upstream api_ingressa {
+    server ${API_UPSTREAM};
+    keepalive 32;
+}
+
 server {
-    listen 80;
+    listen 8080;
     server_name _;
     root /usr/share/nginx/html;
 
+    # Documentação da API (só responde quando a API roda em Development).
+    location ~ ^/(scalar|openapi)(/|$) {
+        proxy_pass http://api_ingressa;
+        proxy_set_header Host $host;
+    }
+
     # A interface e a API ficam na mesma origem: o cookie de sessão (SameSite=Strict) funciona sem CORS.
     location /api/ {
-        proxy_pass http://api:8080;
+        proxy_pass http://api_ingressa;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
     }
 
     location /assets/ {
