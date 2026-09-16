@@ -1,4 +1,9 @@
 using Ingressa.Application.Abstracoes;
+using Ingressa.Infrastructure.Cache;
+using Ingressa.Infrastructure.FilaVirtual;
+using Ingressa.Infrastructure.Idempotencia;
+using Ingressa.Infrastructure.Limites;
+using Ingressa.Infrastructure.Manutencao;
 using Ingressa.Infrastructure.Email;
 using Ingressa.Infrastructure.Mensageria;
 using Ingressa.Infrastructure.Outbox;
@@ -8,6 +13,7 @@ using Ingressa.Infrastructure.Seguranca;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace Ingressa.Infrastructure;
 
@@ -27,7 +33,10 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepositorio, RefreshTokenRepositorio>();
         services.AddScoped<IEventoRepositorio, EventoRepositorio>();
         services.AddScoped<IPedidoRepositorio, PedidoRepositorio>();
-        services.AddScoped<IConsultasDeEventos, ConsultasDeEventos>();
+        services.AddScoped<ConsultasDeEventos>();
+        services.AddScoped<IConsultasDeEventos, ConsultasDeEventosEmCache>();
+        services.AddScoped<IInvalidadorDeCache, InvalidadorDeCache>();
+        services.AddScoped<ControleDeIdempotencia>();
         services.AddScoped<IConsultasDePedidos, ConsultasDePedidos>();
 
         services.AddSingleton<ISenhaHasher, SenhaHasherPbkdf2>();
@@ -35,7 +44,29 @@ public static class DependencyInjection
         services.AddSingleton<IGatewayDePagamento, GatewayDePagamentoSimulado>();
         services.AddSingleton(TimeProvider.System);
 
-        services.AddHealthChecks().AddDbContextCheck<IngressaDbContext>("postgres", tags: ["pronto"]);
+        // ---------- Redis: fila virtual, limites distribuídos e cache ----------
+        var redis = configuracao.GetConnectionString("Redis")
+            ?? throw new InvalidOperationException("Connection string 'Redis' não configurada.");
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            // Não derruba a aplicação se o Redis demorar a subir: a conexão é refeita sozinha.
+            var opcoes = ConfigurationOptions.Parse(redis);
+            opcoes.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(opcoes);
+        });
+        services.Configure<OpcoesDaFila>(configuracao.GetSection(OpcoesDaFila.Secao));
+        services.AddSingleton<IFilaVirtual, FilaVirtualRedis>();
+        services.AddSingleton<ILimitadorDistribuido, LimitadorRedis>();
+        services.AddStackExchangeRedisCache(o =>
+        {
+            o.Configuration = redis;
+            o.InstanceName = "cache:";
+        });
+        services.AddHybridCache();
+
+        services.AddHealthChecks()
+            .AddDbContextCheck<IngressaDbContext>("postgres", tags: ["pronto"])
+            .AddCheck<VerificacaoRedis>("redis", tags: ["pronto"]);
         return services;
     }
 
@@ -50,6 +81,7 @@ public static class DependencyInjection
         services.AddSingleton<IEnviadorDeEmail, EnviadorDeEmailSmtp>();
 
         services.AddHostedService<DespachanteDaOutbox>();
+        services.AddHostedService<LimpezaDeDados>();
 
         services.AddHealthChecks().AddCheck<VerificacaoRabbitMq>("rabbitmq", tags: ["pronto"]);
         return services;

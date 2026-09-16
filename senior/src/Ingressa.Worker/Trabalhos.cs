@@ -1,4 +1,7 @@
+using Ingressa.Application.Fila;
 using Ingressa.Application.Pedidos;
+using Ingressa.Infrastructure.FilaVirtual;
+using Microsoft.Extensions.Options;
 using Ingressa.Domain.Comum;
 using Ingressa.Domain.Pedidos;
 using Ingressa.Infrastructure.Mensageria;
@@ -62,5 +65,32 @@ public sealed class ExpiradorDeReservas(IServiceScopeFactory scopes, IConfigurat
             }
         }
         while (await temporizador.WaitForNextTickAsync(stoppingToken));
+    }
+}
+
+/// <summary>
+/// Libera, a cada poucos segundos, os próximos da fila virtual de cada evento.
+/// Pode rodar em várias réplicas do Worker: a liberação é atômica no Redis.
+/// </summary>
+public sealed class AdmissaoDaFilaVirtual(
+    IServiceScopeFactory scopes,
+    IOptions<OpcoesDaFila> opcoes,
+    ILogger<AdmissaoDaFilaVirtual> logger) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(opcoes.Value.IntervaloDeAdmissaoEmSegundos));
+        while (await temporizador.WaitForNextTickAsync(stoppingToken))
+        {
+            try
+            {
+                await using var scope = scopes.CreateAsyncScope();
+                await scope.ServiceProvider.GetRequiredService<FilaVirtualService>().AdmitirEmTodasAsync(stoppingToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Falha ao liberar a fila virtual; nova tentativa no próximo ciclo");
+            }
+        }
     }
 }

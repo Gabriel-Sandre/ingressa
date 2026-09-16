@@ -1,6 +1,7 @@
 using Ingressa.Application.Admin;
 using Ingressa.Application.Auth;
 using Ingressa.Application.Eventos;
+using Ingressa.Application.Fila;
 using Ingressa.Application.Pedidos;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<AdminService>();
         services.AddScoped<EventoService>();
         services.AddScoped<PedidoService>();
+        services.AddScoped<FilaVirtualService>();
         return services;
     }
 
@@ -21,6 +23,7 @@ public static class DependencyInjection
     public static IServiceCollection AddProcessamentoDePedidos(this IServiceCollection services)
     {
         services.AddScoped<ProcessamentoDePedidosService>();
+        services.AddScoped<FilaVirtualService>();
         return services;
     }
 }
