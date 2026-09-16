@@ -1,6 +1,7 @@
 using Ingressa.Application.Admin;
 using Ingressa.Application.Auth;
 using Ingressa.Application.Eventos;
+using Ingressa.Application.Fila;
 using Ingressa.Application.Pedidos;
 using Ingressa.Application.Tests.Fakes;
 using Ingressa.Domain.Eventos;
@@ -16,15 +17,18 @@ public sealed class Cenario
     public GatewayFalso Gateway { get; } = new();
     public EmailFalso Email { get; } = new();
     public GeradorDeCodigosFalso Codigos { get; } = new();
+    public FilaFalsa Fila { get; } = new(compradoresSimultaneos: 2);
 
     public AuthService Auth => new(Banco, Banco, Banco, new SenhaHasherFalso(),
         new GeradorDeAccessTokenFalso(Relogio), Codigos, Relogio, Log.Nulo<AuthService>());
 
     public AdminService Admin => new(Banco, Banco, Log.Nulo<AdminService>());
 
-    public EventoService Eventos => new(Banco, Banco, Banco, Banco, Relogio);
+    public EventoService Eventos => new(Banco, Banco, Banco, Banco, Fila, Relogio);
 
-    public PedidoService Pedidos => new(Banco, Banco, Banco, Banco, Banco, Gateway, Relogio, Log.Nulo<PedidoService>());
+    public PedidoService Pedidos => new(Banco, Banco, Banco, Banco, Banco, Gateway, Fila, Relogio, Log.Nulo<PedidoService>());
+
+    public FilaVirtualService FilaVirtual => new(Banco, Fila, Relogio, Log.Nulo<FilaVirtualService>());
 
     public ProcessamentoDePedidosService Processamento => new(
         Banco, Banco, Banco, Banco, Codigos, Gateway, Email, Relogio, Log.Nulo<ProcessamentoDePedidosService>());
@@ -51,11 +55,11 @@ public sealed class Cenario
     }
 
     /// <summary>Evento publicado daqui a <paramref name="dias"/> dias com Pista (R$ 100) e VIP (R$ 300).</summary>
-    public async Task<Evento> EventoAsync(int capacidadePista = 10, int capacidadeVip = 2, int dias = 10)
+    public async Task<Evento> EventoAsync(int capacidadePista = 10, int capacidadeVip = 2, int dias = 10, bool filaVirtual = false)
     {
         var organizador = await OrganizadorAsync(email: $"org{Guid.NewGuid():N}@teste.com");
         var evento = Evento.Criar(organizador.Id,
-            new DadosDoEvento("Show", "Descrição", "Arena", "Rio", Relogio.Agora.AddDays(dias)), Relogio.Agora);
+            new DadosDoEvento("Show", "Descrição", "Arena", "Rio", Relogio.Agora.AddDays(dias), filaVirtual), Relogio.Agora);
         evento.AdicionarSetor("Pista", 100m, capacidadePista);
         evento.AdicionarSetor("VIP", 300m, capacidadeVip);
         evento.Publicar(Relogio.Agora);

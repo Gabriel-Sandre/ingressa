@@ -48,8 +48,12 @@ public sealed class AuthTests(ApiFactory api)
         Assert.Equal(HttpStatusCode.OK, roubo.StatusCode);
         var t2 = ExtrairCookie(roubo);
 
-        // Quando a vítima tenta usar T1 (já usado), o reuso é detectado...
-        Assert.Equal(HttpStatusCode.Unauthorized, (await vitima.PostAsync("/api/auth/renovar", null)).StatusCode);
+        // Passada a janela de tolerância de renovações simultâneas, a vítima tenta usar T1:
+        // o reuso é detectado...
+        using (api.Relogio.Adiantar(TimeSpan.FromMinutes(1)))
+        {
+            Assert.Equal(HttpStatusCode.Unauthorized, (await vitima.PostAsync("/api/auth/renovar", null)).StatusCode);
+        }
 
         // ...e a família inteira é revogada: o token do atacante também deixa de valer.
         Assert.Equal(HttpStatusCode.Unauthorized, (await RenovarComAsync(api.NovoCliente(), t2)).StatusCode);

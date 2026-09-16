@@ -197,7 +197,7 @@ public sealed class BancoEmMemoria :
         var itens = Eventos.Where(e => e.Publicado && e.DataInicio > agora)
             .OrderBy(e => e.DataInicio)
             .Select(e => new EventoResumoResponse(e.Id, e.Titulo, e.Local, e.Cidade, e.DataInicio,
-                e.Setores.Count == 0 ? null : e.Setores.Min(s => s.Preco), e.Setores.All(s => s.Disponiveis == 0)))
+                e.Setores.Count == 0 ? null : e.Setores.Min(s => s.Preco), e.Setores.All(s => s.Disponiveis == 0), e.FilaVirtual))
             .ToList();
         return Task.FromResult(Paginas.Criar<EventoResumoResponse>(itens, 1, 50, itens.Count));
     }

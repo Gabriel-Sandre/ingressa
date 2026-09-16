@@ -90,6 +90,7 @@ public class AuthServiceTests
         await RegistrarAsync();
         var login = await _c.Auth.LoginAsync(new LoginRequest("ana@teste.com", "Senha@123"), default);
         var renovada = await _c.Auth.RenovarAsync(login.RefreshToken, default);
+        _c.Relogio.Avancar(TimeSpan.FromMinutes(1)); // fora da janela de tolerância
 
         // Um atacante com uma cópia do token antigo tenta usá-lo.
         await Assert.ThrowsAsync<NaoAutenticadoException>(() => _c.Auth.RenovarAsync(login.RefreshToken, default));
@@ -120,5 +121,38 @@ public class AuthServiceTests
         await _c.Auth.SairAsync(login.RefreshToken, default);
 
         await Assert.ThrowsAsync<NaoAutenticadoException>(() => _c.Auth.RenovarAsync(login.RefreshToken, default));
+    }
+}
+
+public class RenovacaoSimultaneaTests
+{
+    private readonly Cenario _c = new();
+
+    [Fact]
+    public async Task DuasAbasRenovandoJuntas_NaoDerrubamASessao()
+    {
+        await _c.Auth.RegistrarAsync(new RegistrarRequest("Ana Souza", "ana@teste.com", "Senha@123"), default);
+        var login = await _c.Auth.LoginAsync(new LoginRequest("ana@teste.com", "Senha@123"), default);
+
+        var abaA = await _c.Auth.RenovarAsync(login.RefreshToken, default);
+        _c.Relogio.Avancar(TimeSpan.FromSeconds(3));
+        var abaB = await _c.Auth.RenovarAsync(login.RefreshToken, default);
+
+        // As duas sessões continuam válidas.
+        await _c.Auth.RenovarAsync(abaA.RefreshToken, default);
+        await _c.Auth.RenovarAsync(abaB.RefreshToken, default);
+    }
+
+    [Fact]
+    public async Task ReusoForaDaJanela_AindaRevogaAFamilia()
+    {
+        await _c.Auth.RegistrarAsync(new RegistrarRequest("Ana Souza", "ana@teste.com", "Senha@123"), default);
+        var login = await _c.Auth.LoginAsync(new LoginRequest("ana@teste.com", "Senha@123"), default);
+        var renovada = await _c.Auth.RenovarAsync(login.RefreshToken, default);
+
+        _c.Relogio.Avancar(Domain.Usuarios.RefreshToken.JanelaDeTolerancia + TimeSpan.FromSeconds(1));
+
+        await Assert.ThrowsAsync<NaoAutenticadoException>(() => _c.Auth.RenovarAsync(login.RefreshToken, default));
+        await Assert.ThrowsAsync<NaoAutenticadoException>(() => _c.Auth.RenovarAsync(renovada.RefreshToken, default));
     }
 }

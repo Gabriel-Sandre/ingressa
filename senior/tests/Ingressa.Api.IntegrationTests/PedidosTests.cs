@@ -34,7 +34,7 @@ public sealed class PedidosTests(ApiFactory api)
         var tentativas = clientes.Select(async cliente =>
         {
             await largada.Task;
-            var resposta = await cliente.PostAsJsonAsync("/api/pedidos",
+            var resposta = await cliente.PostIdempotenteAsync("/api/pedidos",
                 new CriarPedidoRequest(eventoId, [new ItemPedidoRequest(setorId, 1)]));
             return resposta.StatusCode;
         }).ToList();
@@ -56,11 +56,11 @@ public sealed class PedidosTests(ApiFactory api)
         var (eventoId, setorId) = await api.CriarEventoAsync(organizadorId, 100);
         var (cliente, _) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
 
-        var reserva = await LerAsync(await cliente.PostAsJsonAsync("/api/pedidos",
+        var reserva = await LerAsync(await cliente.PostIdempotenteAsync("/api/pedidos",
             new CriarPedidoRequest(eventoId, [new ItemPedidoRequest(setorId, 2)])), HttpStatusCode.Created);
         Assert.Equal(StatusPedido.AguardandoPagamento, reserva.Status);
 
-        var pago = await LerAsync(await cliente.PostAsJsonAsync($"/api/pedidos/{reserva.Id}/pagamento",
+        var pago = await LerAsync(await cliente.PostIdempotenteAsync($"/api/pedidos/{reserva.Id}/pagamento",
             new PagamentoRequest("tok_aprovado")), HttpStatusCode.OK);
         Assert.Equal(StatusPedido.Pago, pago.Status);
         Assert.False(pago.IngressosEmitidos);
@@ -89,10 +89,10 @@ public sealed class PedidosTests(ApiFactory api)
         var (_, organizadorId) = await api.EntrarComoAsync(PerfilUsuario.Organizador);
         var (eventoId, setorId) = await api.CriarEventoAsync(organizadorId, 10);
         var (cliente, _) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
-        var reserva = await LerAsync(await cliente.PostAsJsonAsync("/api/pedidos",
+        var reserva = await LerAsync(await cliente.PostIdempotenteAsync("/api/pedidos",
             new CriarPedidoRequest(eventoId, [new ItemPedidoRequest(setorId, 1)])), HttpStatusCode.Created);
 
-        var resposta = await cliente.PostAsJsonAsync($"/api/pedidos/{reserva.Id}/pagamento", new PagamentoRequest("tok_recusado"));
+        var resposta = await cliente.PostIdempotenteAsync($"/api/pedidos/{reserva.Id}/pagamento", new PagamentoRequest("tok_recusado"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, resposta.StatusCode);
     }
@@ -104,7 +104,7 @@ public sealed class PedidosTests(ApiFactory api)
         var (eventoId, setorId) = await api.CriarEventoAsync(organizadorId, 10);
         var (dono, _) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
         var (outro, _) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
-        var reserva = await LerAsync(await dono.PostAsJsonAsync("/api/pedidos",
+        var reserva = await LerAsync(await dono.PostIdempotenteAsync("/api/pedidos",
             new CriarPedidoRequest(eventoId, [new ItemPedidoRequest(setorId, 1)])), HttpStatusCode.Created);
 
         Assert.Equal(HttpStatusCode.NotFound, (await outro.GetAsync($"/api/pedidos/{reserva.Id}")).StatusCode);
@@ -116,7 +116,7 @@ public sealed class PedidosTests(ApiFactory api)
         var (_, organizadorId) = await api.EntrarComoAsync(PerfilUsuario.Organizador);
         var (eventoId, setorId) = await api.CriarEventoAsync(organizadorId, 10);
         var (cliente, _) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
-        var reserva = await LerAsync(await cliente.PostAsJsonAsync("/api/pedidos",
+        var reserva = await LerAsync(await cliente.PostIdempotenteAsync("/api/pedidos",
             new CriarPedidoRequest(eventoId, [new ItemPedidoRequest(setorId, 1)])), HttpStatusCode.Created);
 
         // Duas operações leem o mesmo pedido (mesmo xmin)...

@@ -99,3 +99,27 @@ public class RefreshTokenTests
         Assert.False(token.EstaAtivo(Agora));
     }
 }
+
+public class JanelaDeToleranciaTests
+{
+    [Fact]
+    public void TokenUsadoHaPoucoFicaNaJanela()
+    {
+        var token = RefreshToken.Emitir(1, "hash", Guid.NewGuid(), Agora, TimeSpan.FromDays(7));
+        token.MarcarComoUsado(Agora);
+
+        Assert.True(token.DentroDaJanelaDeTolerancia(Agora.AddSeconds(5)));
+        Assert.False(token.DentroDaJanelaDeTolerancia(Agora + RefreshToken.JanelaDeTolerancia + TimeSpan.FromSeconds(1)));
+
+        token.Revogar(Agora);
+        Assert.False(token.DentroDaJanelaDeTolerancia(Agora.AddSeconds(1)));
+    }
+
+    [Fact]
+    public void TokenNuncaUsadoNaoEstaNaJanela()
+    {
+        var token = RefreshToken.Emitir(1, "hash", Guid.NewGuid(), Agora, TimeSpan.FromDays(7));
+
+        Assert.False(token.DentroDaJanelaDeTolerancia(Agora));
+    }
+}

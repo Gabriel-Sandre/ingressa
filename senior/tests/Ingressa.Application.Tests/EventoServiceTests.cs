@@ -70,7 +70,7 @@ public class EventoServiceTests
     {
         var cliente = await _c.ClienteAsync();
         var evento = await _c.EventoAsync();
-        await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), default);
+        await _c.Pedidos.ReservarAsync(cliente.Id, Cenario.Pedido(evento, (0, 1)), null, default);
 
         await Assert.ThrowsAsync<ConflitoException>(() => _c.Eventos.ExcluirAsync(evento.OrganizadorId, evento.Id, default));
     }

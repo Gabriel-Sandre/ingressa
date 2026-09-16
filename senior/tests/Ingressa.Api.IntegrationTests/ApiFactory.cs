@@ -7,13 +7,16 @@ using Ingressa.Domain.Usuarios;
 using Ingressa.Infrastructure.Persistencia;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
+using Testcontainers.Redis;
 
 namespace Ingressa.Api.IntegrationTests;
 
 /// <summary>
-/// Sobe a API inteira em memória, apontando para um PostgreSQL de verdade em container.
+/// Sobe a API inteira em memória, apontando para PostgreSQL e Redis de verdade em containers.
 /// Um container é compartilhado por todos os testes da coleção; cada teste cria seus próprios dados.
 /// </summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
@@ -21,15 +24,27 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public const string Senha = "Senha@123";
 
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private readonly RedisContainer _redis = new RedisBuilder("redis:7.4-alpine").Build();
+
+    /// <summary>Relógio da aplicação, que os testes podem adiantar.</summary>
+    public RelogioAjustavel Relogio { get; } = new();
+
+    public string ConexaoRedis => _redis.GetConnectionString();
 
     public string? LimitePorMinuto { get; init; } = "10000";
 
-    public async Task InitializeAsync() => await _postgres.StartAsync();
+    public string LimiteDeReservas { get; init; } = "10000";
+
+    /// <summary>Chave antiga ainda aceita na validação (rotação de chaves).</summary>
+    public const string ChaveAnterior = "chave-antiga-que-ainda-vale-durante-a-rotacao-123";
+
+    public Task InitializeAsync() => Task.WhenAll(_postgres.StartAsync(), _redis.StartAsync());
 
     public new async Task DisposeAsync()
     {
         await base.DisposeAsync();
         await _postgres.DisposeAsync();
+        await _redis.DisposeAsync();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -38,7 +53,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("ConnectionStrings:Ingressa", _postgres.GetConnectionString());
         builder.UseSetting("Jwt:Chave", "chave-dos-testes-de-integracao-com-32-bytes-ou-mais");
         builder.UseSetting("Banco:DadosDeDemonstracao", "false");
-        builder.UseSetting("LimiteDeRequisicoes:AutenticacaoPorMinuto", LimitePorMinuto);
+        builder.UseSetting("ConnectionStrings:Redis", _redis.GetConnectionString());
+        builder.UseSetting("LimitesDistribuidos:autenticacao:Limite", LimitePorMinuto);
+        builder.UseSetting("LimitesDistribuidos:reservas:Limite", LimiteDeReservas);
+        builder.UseSetting("LimiteDeRequisicoes:GlobalPorMinuto", "100000");
+        builder.UseSetting("Jwt:ChavesAnteriores:0", ChaveAnterior);
+        builder.ConfigureTestServices(s =>
+        {
+            s.RemoveAll<TimeProvider>();
+            s.AddSingleton<TimeProvider>(Relogio);
+        });
     }
 
     /// <summary>Cliente HTTPS (o cookie de sessão é Secure) que guarda cookies.</summary>
@@ -111,4 +135,39 @@ public static class Json
     {
         Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
     };
+}
+
+public sealed class RelogioAjustavel : TimeProvider
+{
+    private TimeSpan _deslocamento;
+
+    public override DateTimeOffset GetUtcNow() => base.GetUtcNow() + _deslocamento;
+
+    public IDisposable Adiantar(TimeSpan tempo)
+    {
+        _deslocamento += tempo;
+        return new Restaurar(() => _deslocamento -= tempo);
+    }
+
+    private sealed class Restaurar(Action acao) : IDisposable
+    {
+        public void Dispose() => acao();
+    }
+}
+
+public static class ClienteHttpExtensions
+{
+    /// <summary>POST com Idempotency-Key (nova, se não for informada) e, opcionalmente, o passe da fila.</summary>
+    public static Task<HttpResponseMessage> PostIdempotenteAsync<T>(
+        this HttpClient cliente, string url, T corpo, string? chave = null, string? passe = null)
+    {
+        var requisicao = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(corpo) };
+        requisicao.Headers.Add("Idempotency-Key", chave ?? Guid.NewGuid().ToString());
+        if (passe is not null)
+        {
+            requisicao.Headers.Add("X-Passe-Fila", passe);
+        }
+
+        return cliente.SendAsync(requisicao);
+    }
 }
