@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directories: ["/junior", "/pleno", "/senior"]
+    schedule: { interval: weekly }
+    groups:
+      microsoft: { patterns: ["Microsoft.*", "System.*"] }
+      opentelemetry: { patterns: ["OpenTelemetry*"] }
+  - package-ecosystem: npm
+    directories: ["/pleno/web", "/senior/web"]
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directories: ["/pleno/deploy", "/senior/deploy"]
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: weekly }
+  - package-ecosystem: terraform
+    directory: "/senior/infrastructure/terraform"
+    schedule: { interval: weekly }
