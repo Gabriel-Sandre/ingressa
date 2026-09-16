@@ -298,7 +298,8 @@ O que **não** foi adicionado, e por quê:
 3. **Pagamento sem idempotência de ponta a ponta.** Um clique duplo muito rápido gera duas cobranças no gateway; a segunda é detectada pela concorrência otimista e estornada, mas o ideal é nem chegar a cobrar. → *Sênior: chave de idempotência por requisição.*
 4. **Visibilidade limitada.** Há logs e health checks, mas não métricas nem *tracing*. → *Sênior: OpenTelemetry com painéis e alertas.*
 5. **Sem ambiente de nuvem.** → *Sênior: Terraform na AWS, backups e plano de recuperação.*
-6. **Frontend sem testes ponta a ponta automatizados no CI.** → *Sênior: Playwright.*
+6. **Duas abas renovando a sessão no mesmo instante** podem ser interpretadas como reuso de token e encerrar a sessão. → *Sênior: janela de tolerância curta para o token recém-substituído.*
+7. **Frontend sem testes ponta a ponta automatizados no CI.** → *Sênior: Playwright.*
 
 ---
 
