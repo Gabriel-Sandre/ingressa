@@ -96,8 +96,18 @@ export async function api<T>(caminho: string, init: RequestInit = {}): Promise<T
 
 export const get = <T>(caminho: string) => api<T>(caminho)
 
-export const post = <T>(caminho: string, corpo?: unknown) =>
-  api<T>(caminho, { method: 'POST', body: corpo === undefined ? undefined : JSON.stringify(corpo) })
+export const post = <T>(caminho: string, corpo?: unknown, headers?: HeadersInit) =>
+  api<T>(caminho, { method: 'POST', body: corpo === undefined ? undefined : JSON.stringify(corpo), headers })
+
+/**
+ * Chave de idempotência para operações que não podem ser repetidas por acidente
+ * (reservar, pagar). A mesma chave deve ser reaproveitada ao tentar de novo
+ * a MESMA operação, e trocada quando o usuário muda o que está pedindo.
+ */
+export const novaChave = (): string => crypto.randomUUID()
+
+export const postIdempotente = <T>(caminho: string, corpo: unknown, chave: string, extras: Record<string, string> = {}) =>
+  post<T>(caminho, corpo, { 'Idempotency-Key': chave, ...extras })
 
 export const put = <T>(caminho: string, corpo: unknown) =>
   api<T>(caminho, { method: 'PUT', body: JSON.stringify(corpo) })

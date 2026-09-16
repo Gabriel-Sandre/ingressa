@@ -35,6 +35,7 @@ export interface EventoResumo {
   dataInicio: string
   precoAPartirDe: number | null
   esgotado: boolean
+  filaVirtual: boolean
 }
 
 export interface Setor {
@@ -54,6 +55,7 @@ export interface EventoDetalhe {
   cidade: string
   dataInicio: string
   publicado: boolean
+  filaVirtual: boolean
   setores: Setor[]
 }
 
@@ -93,4 +95,21 @@ export interface ProblemDetails {
   title?: string
   detail?: string
   errors?: Record<string, string[]>
+}
+
+export type SituacaoNaFila = 'Fora' | 'Aguardando' | 'Liberado'
+
+export interface PosicaoNaFila {
+  eventoId: number
+  situacao: SituacaoNaFila
+  posicao: number
+  passe: string | null
+}
+
+export interface MensagemComFalha {
+  id: number
+  tipo: string
+  ocorridoEm: string
+  tentativas: number
+  ultimoErro: string | null
 }
