@@ -1,0 +1,42 @@
+# API_UPSTREAM vem do ambiente (a imagem do nginx aplica envsubst nos templates ao iniciar).
+# No Docker Compose, "api" resolve para todas as réplicas; na AWS, o ECS Service Connect faz o mesmo papel.
+upstream api_ingressa {
+    server ${API_UPSTREAM};
+    keepalive 32;
+}
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # Documentação da API (só responde quando a API roda em Development).
+    location ~ ^/(scalar|openapi)(/|$) {
+        proxy_pass http://api_ingressa;
+        proxy_set_header Host $host;
+    }
+
+    # A interface e a API ficam na mesma origem: o cookie de sessão (SameSite=Strict) funciona sem CORS.
+    location /api/ {
+        proxy_pass http://api_ingressa;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Rotas do React Router caem no index.html.
+    location / {
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options "nosniff";
+        add_header Referrer-Policy "no-referrer";
+        add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'";
+        try_files $uri /index.html;
+    }
+}

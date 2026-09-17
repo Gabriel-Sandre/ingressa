@@ -1,0 +1,128 @@
+name: Segurança
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # toda segunda: novas vulnerabilidades aparecem sem mudança no código
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.linguagem }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        linguagem: [csharp, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.linguagem }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@v3
+
+  segredos:
+    name: Segredos no histórico (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  dependencias:
+    name: Revisão de dependências
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  imagens:
+    name: Imagens e configuração (Trivy)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Monta as imagens da Sênior
+        working-directory: senior
+        run: |
+          docker build -f deploy/dotnet.Dockerfile --build-arg PROJETO=Ingressa.Api -t ingressa-api:ci .
+          docker build -f deploy/web.Dockerfile -t ingressa-web:ci .
+      - name: Vulnerabilidades na imagem da API
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ingressa-api:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Vulnerabilidades na imagem da interface
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ingressa-web:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Configuração (Dockerfiles, compose, Terraform)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: config
+          scan-ref: senior
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-config.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+
+  terraform:
+    name: Terraform (checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: senior/infrastructure/terraform
+          framework: terraform
+          soft_fail: true # relatório; as exceções aceitas estão em docs/seguranca.md
+          output_format: cli
+
+  dast:
+    name: Varredura dinâmica (OWASP ZAP baseline)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: senior
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sobe o ambiente
+        run: |
+          {
+            echo "AMBIENTE=Production"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "REDIS_PASSWORD=$(openssl rand -hex 24)"
+            echo "RABBITMQ_PASSWORD=$(openssl rand -hex 24)"
+            echo "JWT_CHAVE=$(openssl rand -base64 48)"
+          } > .env
+          docker compose up -d --build --wait
+      - uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: http://localhost:8080
+          allow_issue_writing: false
+          fail_action: false
+      - if: always()
+        run: docker compose down -v

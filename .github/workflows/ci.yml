@@ -75,4 +75,125 @@ jobs:
     needs: [pleno-backend, pleno-web]
     steps:
       - uses: actions/checkout@v4
+      - run: cp pleno/.env.example pleno/.env
       - run: docker compose -f pleno/compose.yaml build
+
+  senior-backend:
+    name: Sênior · build e testes (.NET + PostgreSQL + Redis)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: senior
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: senior/global.json
+      - run: dotnet restore
+      - run: dotnet build --no-restore --configuration Release
+      # Integração: PostgreSQL e Redis reais via Testcontainers.
+      - run: dotnet test --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./TestResults
+      - name: Migrations em dia com o modelo
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes -p src/Ingressa.Infrastructure -s src/Ingressa.Api
+      - name: Pacotes com vulnerabilidades conhecidas
+        run: |
+          dotnet list package --vulnerable --include-transitive | tee vulneraveis.txt
+          ! grep -q -E 'High|Critical' vulneraveis.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cobertura-senior
+          path: senior/TestResults
+
+  senior-web:
+    name: Sênior · interface (lint, testes e build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: senior/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: senior/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  senior-ambiente:
+    name: Sênior · ponta a ponta (compose + Playwright + k6)
+    runs-on: ubuntu-latest
+    needs: [senior-backend, senior-web]
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: senior
+    steps:
+      - uses: actions/checkout@v4
+      - name: Arquivo .env com senhas aleatórias
+        run: |
+          {
+            echo "AMBIENTE=Development"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "REDIS_PASSWORD=$(openssl rand -hex 24)"
+            echo "RABBITMQ_PASSWORD=$(openssl rand -hex 24)"
+            echo "JWT_CHAVE=$(openssl rand -base64 48)"
+            echo "LIMITE_AUTENTICACAO=100000"
+            echo "LIMITE_RESERVAS=100000"
+            echo "LIMITE_GLOBAL_POR_MINUTO=1000000"
+            echo "COMPRADORES_SIMULTANEOS=20"
+          } > .env
+      - run: docker compose up -d --build --wait
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: senior/web/package-lock.json
+      - name: Playwright
+        working-directory: senior/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run e2e
+      - name: k6 (fumaça do pico de vendas)
+        run: |
+          mkdir -p tests/carga/resultados && chmod 777 tests/carga/resultados
+          docker compose --profile carga run --rm k6 run -e COMPRADORES=40 /scripts/pico-de-vendas.js
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose logs --no-color > compose.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ponta-a-ponta-senior
+          path: |
+            senior/web/playwright-report
+            senior/tests/carga/resultados
+            senior/compose.log
+          if-no-files-found: ignore
+      - if: always()
+        run: docker compose down -v
+
+  senior-infra:
+    name: Sênior · Terraform (fmt, validate, tflint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: senior/infrastructure/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      # Sem backend: valida a sintaxe e as referências sem acessar a AWS.
+      - run: terraform init -backend=false
+      - run: terraform validate
+      - uses: terraform-linters/setup-tflint@v4
+      - run: tflint --init && tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
