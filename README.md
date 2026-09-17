@@ -23,7 +23,7 @@ O Ingressa resolve esses problemas **em etapas**, e cada etapa fica registrada n
 
 | | [Júnior](junior/) | [Pleno](pleno/) | [Sênior](senior/) |
 |---|---|---|---|
-| **Pergunta que responde** | "Sei construir uma API correta?" | "Sei estruturar um sistema profissional?" | "Sei decidir arquitetura para escala e falhas?" |
+| **Pergunta que responde** | "Sei construir uma API correta?" | "Sei estruturar um sistema profissional?" | "Como eu prepararia esse sistema para escala e falhas?" |
 | **Arquitetura** | Monólito em um projeto | Monólito em camadas + Worker | Mesmas camadas, réplicas e autoscaling (extração de serviços avaliada e descartada) |
 | **Banco** | SQLite | PostgreSQL + migrations | PostgreSQL + Redis (fila, limites, cache) |
 | **Concorrência** | Não tratada (limitação documentada) | UPDATE atômico + reserva com expiração | + fila virtual e idempotência |
@@ -47,7 +47,7 @@ dotnet run --project src/Ingressa.Api --launch-profile http
 Para a versão Pleno (precisa do Docker):
 
 ```bash
-cd ingressa/pleno            # ou ingressa/senior
+cd ../pleno                  # ou ../senior
 cp .env.example .env         # troque as senhas
 docker compose up --build
 # abra http://localhost:8080
@@ -61,10 +61,12 @@ docker compose up --build
 
 200 compras simultâneas para um setor com 10 lugares ([experimento](pleno/docs/experimentos/concorrencia-no-estoque.md)):
 
-| | Compras aceitas | Lugares registrados |
+| Como o estoque é baixado | Compras aceitas | Lugares registrados |
 |---|---|---|
-| Júnior (ler → calcular → gravar) | **200** | 9 |
-| Pleno (UPDATE atômico) | **10** | 10 |
+| Ler → calcular → gravar (o método da Júnior) | **200** | 9 |
+| `UPDATE` condicional atômico (o método da Pleno) | **10** | 10 |
+
+O experimento roda direto no PostgreSQL, com os dois métodos, para comparar só a técnica — a versão Júnior usa SQLite, que serializa as escritas e esconde o problema.
 
 ## Estrutura do repositório
 

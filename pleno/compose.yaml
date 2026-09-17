@@ -13,7 +13,7 @@ services:
       POSTGRES_DB: ingressa
       POSTGRES_USER: ingressa
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]
     volumes: [postgres:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ingressa -d ingressa"]
@@ -25,7 +25,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ingressa
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no arquivo .env}
-    ports: ["5672:5672", "15672:15672"]
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -33,7 +33,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
-    ports: ["1025:1025", "8025:8025"]
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
 
   api:
     build:
@@ -45,7 +45,7 @@ services:
       ConnectionStrings__Ingressa: Host=postgres;Database=ingressa;Username=ingressa;Password=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
       Jwt__Chave: ${JWT_CHAVE:?defina JWT_CHAVE no arquivo .env}
       Banco__DadosDeDemonstracao: "true"
-    ports: ["5180:8080"]
+    ports: ["127.0.0.1:5180:8080"]
     depends_on:
       postgres: { condition: service_healthy }
 

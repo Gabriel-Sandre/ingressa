@@ -22,7 +22,7 @@ Opção 4.
 
 - O `HybridCache` evita *cache stampede* (uma só consulta ao banco por chave, mesmo com muitas requisições simultâneas).
 - Validade curta: disponibilidade de ingressos pode ficar até 10 s desatualizada na vitrine, mas **a compra sempre consulta o banco** — o cache nunca decide se há estoque.
-- Alterações do organizador invalidam as *tags* `eventos` e `evento:{id}` logo após o `SaveChanges`.
+- Alterações do organizador invalidam as *tags* `vitrine` e `evento:{id}` logo após o `SaveChanges`.
 
 ## Consequências
 
