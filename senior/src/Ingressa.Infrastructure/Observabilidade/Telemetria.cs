@@ -3,6 +3,7 @@ using Ingressa.Application.Observabilidade;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
@@ -24,6 +25,14 @@ public static class Telemetria
         var endpoint = configuracao["Otlp:Endpoint"];
         var ambiente = configuracao["ASPNETCORE_ENVIRONMENT"] ?? "Production";
 
+        // Escopos e mensagem formatada são opções do provedor de logs (OpenTelemetryLoggerOptions),
+        // configuradas pelo ILoggingBuilder; o WithLogging abaixo só liga o sinal de logs ao OTel.
+        services.AddLogging(logs => logs.AddOpenTelemetry(o =>
+        {
+            o.IncludeScopes = true;
+            o.IncludeFormattedMessage = true;
+        }));
+
         var otel = services.AddOpenTelemetry()
             .ConfigureResource(r => r
                 .AddService(nomeDoServico, serviceNamespace: "ingressa", serviceVersion: "3.0.0")
@@ -39,11 +48,7 @@ public static class Telemetria
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation())
-            .WithLogging(configureOptions: o =>
-            {
-                o.IncludeScopes = true;
-                o.IncludeFormattedMessage = true;
-            });
+            .WithLogging();
 
         if (!string.IsNullOrWhiteSpace(endpoint))
         {
