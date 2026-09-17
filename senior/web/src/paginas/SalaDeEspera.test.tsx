@@ -49,4 +49,27 @@ describe('SalaDeEspera', () => {
     expect(await screen.findByText('Página de compra')).toBeInTheDocument()
     expect(obterPasse(5)).toBe('passe-xyz')
   })
+
+  it('não volta para o fim da fila quando a compra já começou', async () => {
+    fetchMock.mockImplementation(async (url) => {
+      const u = String(url)
+      if (u === '/api/eventos/7') return json({ id: 7, titulo: 'Show', dataInicio: '2026-10-15T22:00:00Z', setores: [] })
+      return json({ eventoId: 7, situacao: 'Comprando', posicao: 0, passe: null })
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/eventos/7/fila']}>
+        <Routes>
+          <Route path="/eventos/:id/fila" element={<SalaDeEspera />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Sua vez já chegou')).toBeInTheDocument()
+
+    // Nenhuma nova consulta é agendada: o comprador continua com a vaga dele.
+    const chamadas = fetchMock.mock.calls.length
+    await act(async () => { await vi.advanceTimersByTimeAsync(9000) })
+    expect(fetchMock.mock.calls.length).toBe(chamadas)
+  })
 })

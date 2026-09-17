@@ -99,7 +99,10 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c
 // não disputam a mesma migration, e uma migration com erro impede o deploy.
 if (args.Contains("--migrar-e-sair"))
 {
-    await InicializadorDoBanco.InicializarAsync(app.Services, app.Configuration, dadosDeDemonstracao: false);
+    await InicializadorDoBanco.InicializarAsync(
+        app.Services,
+        app.Configuration,
+        dadosDeDemonstracao: app.Configuration.GetValue("Banco:DadosDeDemonstracao", false));
     app.Logger.LogInformation("Banco atualizado; encerrando");
     return;
 }

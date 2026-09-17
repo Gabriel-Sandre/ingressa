@@ -6,7 +6,9 @@
 -- devolver-passe.lua restaura o passe e o comprador tenta de novo sem voltar ao fim da fila.
 
 if redis.call('GET', KEYS[1]) == ARGV[1] then
-  redis.call('SET', KEYS[1] .. ':usado', ARGV[1], 'PX', redis.call('PTTL', KEYS[1]))
+  -- PTTL pode chegar a 0 no último milissegundo de vida do passe; o Redis recusa 'PX 0'.
+  local restante = math.max(redis.call('PTTL', KEYS[1]), 1)
+  redis.call('SET', KEYS[1] .. ':usado', ARGV[1], 'PX', restante)
   redis.call('DEL', KEYS[1])
   return 1
 end

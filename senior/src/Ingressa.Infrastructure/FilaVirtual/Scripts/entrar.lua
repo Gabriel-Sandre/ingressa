@@ -3,15 +3,21 @@
 -- KEYS[2] = fila:{evento}:seq      (contador da ordem de chegada)
 -- KEYS[3] = fila:{evento}:passe:{usuario}  (passe de compra, com TTL)
 -- KEYS[4] = filas:ativas           (SET com os eventos que têm fila)
+-- KEYS[5] = fila:{evento}:passe:{usuario}:usado
 -- ARGV[1] = id do usuário
 -- ARGV[2] = id do evento
 -- Retorno: { estado, valor }
---   { "liberado", passe }   já pode comprar
+--   { "liberado", passe }     já pode comprar
+--   { "comprando", "0" }      já usou o passe e está finalizando a compra
 --   { "aguardando", posição } posição começa em 1
 
 local passe = redis.call('GET', KEYS[3])
 if passe then
   return { 'liberado', passe }
+end
+
+if redis.call('GET', KEYS[5]) then
+  return { 'comprando', '0' }
 end
 
 if redis.call('ZSCORE', KEYS[1], ARGV[1]) == false then

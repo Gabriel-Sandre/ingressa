@@ -39,6 +39,12 @@ export function SalaDeEspera() {
           temporizador = window.setTimeout(() => atualizar(true), 0)
           return
         }
+        if (p.situacao === 'Comprando') {
+          // Recarregou a página depois de reservar: o passe já foi usado e a vaga continua
+          // reservada. Voltar para a fila aqui mandaria o comprador para o fim dela.
+          setPosicao(p)
+          return
+        }
         setPrimeiraPosicao((atual) => atual ?? p.posicao)
         setPosicao(p)
         temporizador = window.setTimeout(() => atualizar(false), INTERVALO_MS)
@@ -72,7 +78,16 @@ export function SalaDeEspera() {
       )}
       <div className="cartao espera">
         {!posicao && !erro && <Carregando />}
-        {posicao && (
+        {posicao?.situacao === 'Comprando' && (
+          <>
+            <p className="posicao">Sua vez já chegou</p>
+            <p className="meta">
+              A compra deste evento está em andamento. Continue por <Link to={`/eventos/${eventoId}`}>esta página</Link>{' '}
+              ou veja o que já foi reservado em <Link to="/pedidos">Meus pedidos</Link>.
+            </p>
+          </>
+        )}
+        {posicao?.situacao === 'Aguardando' && (
           <>
             <p className="posicao" aria-live="polite">
               Você é o <strong>{posicao.posicao}º</strong> da fila

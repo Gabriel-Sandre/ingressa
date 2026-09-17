@@ -26,8 +26,10 @@ public sealed class OpcoesDaFila
 /// mesmo com várias instâncias da API e do Worker.
 /// </summary>
 /// <remarks>
-/// As chaves de um mesmo evento usam a hash tag <c>{evento:ID}</c>, para ficarem no
-/// mesmo slot caso o Redis rode em cluster (scripts só podem tocar chaves de um slot).
+/// As chaves de um mesmo evento usam a hash tag <c>{evento:ID}</c>, que as mantém juntas
+/// e deixa legível a qual evento cada chave pertence. O ambiente previsto é um Redis
+/// único com réplica (ElastiCache), não em modo cluster: os scripts também tocam a chave
+/// global <c>filas:ativas</c>, que num cluster cairia em outro slot.
 /// </remarks>
 public sealed class FilaVirtualRedis(
     IConnectionMultiplexer redis,
@@ -43,6 +45,7 @@ public sealed class FilaVirtualRedis(
     private static readonly string ScriptUsarPasse = Carregar("usar-passe");
     private static readonly string ScriptDevolverPasse = Carregar("devolver-passe");
     private static readonly string ScriptConcluir = Carregar("concluir");
+    private static readonly string ScriptEncerrar = Carregar("encerrar");
 
     private IDatabase Db => redis.GetDatabase();
 
@@ -55,10 +58,12 @@ public sealed class FilaVirtualRedis(
     private static string Passe(int eventoId, int usuarioId) =>
         PrefixoDoPasse(eventoId) + usuarioId.ToString(CultureInfo.InvariantCulture);
 
+    private static string PasseUsado(int eventoId, int usuarioId) => Passe(eventoId, usuarioId) + ":usado";
+
     public async Task<PosicaoNaFila> EntrarAsync(int eventoId, int usuarioId, CancellationToken ct)
     {
         var resultado = await Db.ScriptEvaluateAsync(ScriptEntrar,
-            [Espera(eventoId), Sequencia(eventoId), Passe(eventoId, usuarioId), FilasAtivas],
+            [Espera(eventoId), Sequencia(eventoId), Passe(eventoId, usuarioId), FilasAtivas, PasseUsado(eventoId, usuarioId)],
             [usuarioId, eventoId]);
         return Ler(resultado);
     }
@@ -66,7 +71,7 @@ public sealed class FilaVirtualRedis(
     public async Task<PosicaoNaFila> ConsultarAsync(int eventoId, int usuarioId, CancellationToken ct)
     {
         var resultado = await Db.ScriptEvaluateAsync(ScriptConsultar,
-            [Espera(eventoId), Passe(eventoId, usuarioId)],
+            [Espera(eventoId), Passe(eventoId, usuarioId), PasseUsado(eventoId, usuarioId)],
             [usuarioId]);
         return Ler(resultado);
     }
@@ -82,9 +87,13 @@ public sealed class FilaVirtualRedis(
             PrefixoDoPasse(eventoId)
         };
 
-        // Um passe aleatório para cada vaga possível; o script usa só os que precisar.
-        // O lote é limitado para não enviar milhares de valores por rodada.
-        var lote = Math.Min(o.CompradoresSimultaneos, 500);
+        // Gerar token é caro (aleatoriedade criptográfica), então só geramos o que pode ser
+        // usado nesta rodada: no máximo o número de vagas livres e de pessoas esperando.
+        // As contagens podem mudar entre a leitura e o script; sobrar ou faltar um passe apenas
+        // adia alguém para a rodada seguinte (2 segundos) — o script nunca passa do limite.
+        var espera = await Db.SortedSetLengthAsync(Espera(eventoId));
+        var ativos = await Db.SortedSetLengthAsync(Ativos(eventoId));
+        var lote = (int)Math.Clamp(Math.Min(o.CompradoresSimultaneos - ativos, espera), 0, 500);
         for (var i = 0; i < lote; i++)
         {
             argumentos.Add(codigos.GerarTokenSeguro(24));
@@ -99,18 +108,15 @@ public sealed class FilaVirtualRedis(
     public async Task<IReadOnlyList<int>> ListarEventosComFilaAsync(CancellationToken ct) =>
         (await Db.SetMembersAsync(FilasAtivas)).Select(v => (int)v).ToList();
 
-    public async Task EncerrarSeVaziaAsync(int eventoId, CancellationToken ct)
-    {
-        var agora = relogio.GetUtcNow().ToUnixTimeMilliseconds();
-        await Db.SortedSetRemoveRangeByScoreAsync(Ativos(eventoId), double.NegativeInfinity, agora);
-
-        // Só sai da lista quando ninguém espera e ninguém está comprando.
-        if (await Db.SortedSetLengthAsync(Espera(eventoId)) == 0 &&
-            await Db.SortedSetLengthAsync(Ativos(eventoId)) == 0)
-        {
-            await Db.SetRemoveAsync(FilasAtivas, eventoId);
-        }
-    }
+    /// <summary>
+    /// Só sai da lista quando ninguém espera e ninguém está comprando. É um script porque,
+    /// em comandos separados, alguém poderia entrar na fila entre a verificação e a remoção
+    /// e ficar esperando para sempre (o Worker não voltaria a olhar este evento).
+    /// </summary>
+    public Task EncerrarSeVaziaAsync(int eventoId, CancellationToken ct) =>
+        Db.ScriptEvaluateAsync(ScriptEncerrar,
+            [Espera(eventoId), Ativos(eventoId), FilasAtivas],
+            [relogio.GetUtcNow().ToUnixTimeMilliseconds(), eventoId]);
 
     public async Task<bool> UsarPasseAsync(int eventoId, int usuarioId, string passe, CancellationToken ct) =>
         (int)await Db.ScriptEvaluateAsync(ScriptUsarPasse, [Passe(eventoId, usuarioId)], [passe]) == 1;
@@ -120,7 +126,7 @@ public sealed class FilaVirtualRedis(
 
     public async Task ConcluirAsync(int eventoId, int usuarioId, CancellationToken ct) =>
         await Db.ScriptEvaluateAsync(ScriptConcluir,
-            [Ativos(eventoId), Passe(eventoId, usuarioId) + ":usado"], [usuarioId]);
+            [Ativos(eventoId), PasseUsado(eventoId, usuarioId)], [usuarioId]);
 
     private static PosicaoNaFila Ler(RedisResult resultado)
     {
@@ -128,6 +134,7 @@ public sealed class FilaVirtualRedis(
         return partes.ElementAtOrDefault(0) switch
         {
             "liberado" => new PosicaoNaFila(SituacaoNaFila.Liberado, 0, partes[1]),
+            "comprando" => new PosicaoNaFila(SituacaoNaFila.Comprando, 0, null),
             "aguardando" => new PosicaoNaFila(
                 SituacaoNaFila.Aguardando, long.Parse(partes[1]!, CultureInfo.InvariantCulture), null),
             _ => new PosicaoNaFila(SituacaoNaFila.Fora, 0, null)

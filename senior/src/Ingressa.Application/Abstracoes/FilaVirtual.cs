@@ -9,7 +9,10 @@ public enum SituacaoNaFila
     Aguardando,
 
     /// <summary>Recebeu um passe e pode reservar.</summary>
-    Liberado
+    Liberado,
+
+    /// <summary>Já usou o passe: está finalizando a compra e continua ocupando uma vaga.</summary>
+    Comprando
 }
 
 public sealed record PosicaoNaFila(SituacaoNaFila Situacao, long Posicao, string? Passe);

@@ -59,12 +59,14 @@ services:
 
   mailpit:
     image: axllent/mailpit:v1.27
-    ports: ["127.0.0.1:8025:8025"]
+    # 1025: SMTP (para rodar o Worker fora do Docker) · 8025: caixa de entrada no navegador
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
 
   # Grafana + Tempo (traces) + Prometheus (métricas) + Loki (logs) num único container, para uso local.
   observabilidade:
     image: grafana/otel-lgtm:0.11.10
-    ports: ["127.0.0.1:3000:3000"]
+    # 3000: Grafana · 4317: OTLP (para a API e o Worker rodando fora do Docker)
+    ports: ["127.0.0.1:3000:3000", "127.0.0.1:4317:4317"]
 
   api:
     build:
@@ -80,6 +82,8 @@ services:
       LimitesDistribuidos__autenticacao__Limite: ${LIMITE_AUTENTICACAO:-10}
       LimitesDistribuidos__reservas__Limite: ${LIMITE_RESERVAS:-20}
       LimiteDeRequisicoes__GlobalPorMinuto: ${LIMITE_GLOBAL_POR_MINUTO:-600}
+    # As duas réplicas sobem juntas: quem pegar o lock consultivo do PostgreSQL aplica as
+    # migrations e os dados de demonstração; a outra espera e segue (InicializadorDoBanco).
     # Duas réplicas atrás do nginx: prova que limites, fila e cache funcionam entre instâncias.
     deploy:
       replicas: 2

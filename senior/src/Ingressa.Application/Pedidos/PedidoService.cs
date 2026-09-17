@@ -57,10 +57,12 @@ public sealed class PedidoService(
         {
             pedidoId = await ReservarNoBancoAsync(pedido, ct);
         }
-        catch (Exception ex) when (ex is IngressaException && evento.FilaVirtual)
+        catch (Exception) when (evento.FilaVirtual)
         {
-            // A reserva não deu certo (ex.: acabou o setor escolhido): o passe volta a valer
-            // e o comprador pode tentar outra combinação sem voltar para o fim da fila.
+            // A reserva não deu certo — por regra de negócio (acabou o setor escolhido) ou por
+            // falha inesperada (banco fora do ar, tempo esgotado). Em qualquer caso o passe volta
+            // a valer: o comprador tenta de novo sem voltar para o fim da fila e sem ficar preso
+            // ocupando uma vaga até o passe vencer.
             await fila.DevolverPasseAsync(evento.Id, usuarioId, passeDaFila!, CancellationToken.None);
             throw;
         }
