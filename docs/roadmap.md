@@ -14,7 +14,7 @@
 
 - [x] Camadas Domain / Application / Infrastructure / Api
 - [x] PostgreSQL com migrations
-- [x] Concorrência otimista na baixa de estoque, com teste que prova a correção
+- [x] `UPDATE` condicional atômico na baixa de estoque (e concorrência otimista no pedido), com experimento e testes que provam a correção
 - [x] Reserva com expiração e pagamento simulado
 - [x] Perfil administrador e aprovação de organizadores
 - [x] Refresh token com rotação

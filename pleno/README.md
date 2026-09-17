@@ -294,7 +294,7 @@ O que **não** foi adicionado, e por quê:
 | MediatR / CQRS completo | Com cinco serviços de aplicação, chamar o serviço direto é mais simples de ler e testar |
 | AutoMapper | Os mapeamentos são poucos e explícitos; um erro de mapeamento aparece na compilação |
 | Redis | A vitrine é uma consulta indexada; cache só entra com uma medição que o justifique (Sênior) |
-| ASP.NET Core Identity | O fluxo de sessão com rotação foi construído e testado explicitamente; o Identity é reavaliado no projeto Sentinela |
+| ASP.NET Core Identity | O fluxo de sessão com rotação foi construído e testado explicitamente; o ASP.NET Core Identity é reavaliado no próximo projeto do portfólio (Sentinela, ainda não publicado) |
 | Microsserviços | Ver ADR 0004 |
 
 ## Limitações conhecidas (e o que vem na versão Sênior)

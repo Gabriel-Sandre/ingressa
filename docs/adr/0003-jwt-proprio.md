@@ -19,4 +19,4 @@ JWT próprio, usando apenas primitivas consagradas: `Rfc2898DeriveBytes.Pbkdf2`,
 ## Consequências
 
 - ✅ Cada etapa da autenticação fica visível e testada.
-- ❌ Recursos como bloqueio por tentativas, renovação de token e 2FA precisam ser construídos — o que é feito nas versões seguintes e no projeto Sentinela.
+- ❌ Recursos como bloqueio por tentativas, renovação de token e 2FA precisam ser construídos — o que é feito nas versões seguintes e no próximo projeto do portfólio (Sentinela, ainda não publicado).

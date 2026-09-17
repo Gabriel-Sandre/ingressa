@@ -218,7 +218,7 @@ Erros seguem o padrão **Problem Details** ([RFC 9457](https://www.rfc-editor.or
 
 Estas limitações são **intencionais** nesta etapa e cada uma motiva uma evolução:
 
-1. **Venda duplicada sob concorrência.** A baixa de estoque lê, altera e grava (`Vendidos += n`) sem controle de concorrência. Duas compras simultâneas do último ingresso podem ser aceitas. → *Pleno: concorrência otimista, PostgreSQL e teste de carga que prova a correção.*
+1. **Venda duplicada sob concorrência.** A baixa de estoque lê, altera e grava (`Vendidos += n`) sem controle de concorrência. Duas compras simultâneas do último ingresso podem ser aceitas. → *Pleno: `UPDATE` condicional atômico no PostgreSQL, com um experimento de 200 compras simultâneas que prova a correção.*
 2. **Sem reserva temporária.** A compra é instantânea; na vida real o cliente segura o ingresso por alguns minutos enquanto paga. → *Pleno: reserva com expiração e pagamento simulado.*
 3. **Tudo em um projeto.** Funciona agora, mas regras de negócio, banco e HTTP estão no mesmo lugar. → *Pleno: camadas Domain / Application / Infrastructure / Api.*
 4. **Token sem renovação e guardado no `sessionStorage`.** → *Pleno: refresh token com rotação.*

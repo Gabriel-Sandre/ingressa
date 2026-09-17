@@ -35,11 +35,11 @@
 | Sem medição de desempenho | **k6** com metas (SLOs) que reprovam o teste |
 | Sem ambiente de produção | **Terraform** para AWS (ECS Fargate, RDS, ElastiCache, Amazon MQ, WAF, backups) |
 | CI só com build e testes | Playwright ponta a ponta, k6, CodeQL, gitleaks, Trivy, checkov, ZAP |
-| Senhas padrão no compose | Nenhuma senha no repositório: o compose exige um `.env` |
 
 ## Como rodar
 
-Pré-requisito: **Docker Desktop**.
+Pré-requisitos: **Docker Desktop** e acesso à internet na primeira execução (as imagens
+baixam pacotes e o certificado do RDS).
 
 ```bash
 cd senior
@@ -64,8 +64,8 @@ O **Festival de Rock da Baixada** usa fila virtual.
 ```bash
 cd senior
 docker compose up -d postgres redis rabbitmq mailpit observabilidade
-# As senhas são as do .env (PowerShell: $env:PGPASSWORD = "...")
-export PGPASSWORD=<POSTGRES_PASSWORD>
+# As senhas são as do .env (no PowerShell: $env:ConnectionStrings__Redis = "...")
+export ConnectionStrings__Ingressa="Host=localhost;Database=ingressa;Username=ingressa;Password=<POSTGRES_PASSWORD>"
 export ConnectionStrings__Redis="localhost:6379,password=<REDIS_PASSWORD>"
 export RabbitMq__Senha=<RABBITMQ_PASSWORD>
 export Otlp__Endpoint=http://localhost:4317   # opcional
@@ -97,17 +97,19 @@ As portas dos serviços de apoio só são publicadas em `127.0.0.1`.
 cd senior
 dotnet test                       # Docker aberto: PostgreSQL e Redis reais (Testcontainers)
 cd web && npm test                # interface
-docker compose up -d --build && cd web && npm run e2e                       # ponta a ponta (Playwright)
-docker compose --profile carga run --rm k6 run /scripts/pico-de-vendas.js   # carga
+docker compose up -d --build                         # ambiente completo
+cd web && npx playwright install chromium && npm run e2e                    # ponta a ponta
+mkdir -p tests/carga/resultados                      # o k6 grava o relatório aqui
+docker compose --profile carga run --rm --service-ports k6 run /scripts/pico-de-vendas.js
 ```
 
 | Projeto | Tipo | O que cobre |
 |---|---|---|
 | `Ingressa.Domain.Tests` | Unidade (46) | Regras da Pleno + janela de tolerância do refresh token, evento com fila |
 | `Ingressa.Application.Tests` | Casos de uso (42) | Reserva exige e consome o passe, devolve o passe quando a reserva falha, renovações simultâneas |
-| `Ingressa.Api.IntegrationTests` | Integração (32) | API + PostgreSQL + **Redis reais**: fila de ponta a ponta, passe de outro usuário recusado, cliques simultâneos com a mesma chave, chave divergente, chave abandonada retomada, limite compartilhado entre instâncias, token assinado com a chave anterior, invalidação do cache, limpeza, reprocessamento da outbox, `no-store` |
-| Scripts Lua | 17 cenários | Validados contra `redis-server` real: ordem, limite de ativos, passe vencido, uso duplo, devolução |
-| `web` (Vitest) | Interface (14) | Chave de idempotência estável entre tentativas, sala de espera, renovação de sessão |
+| `Ingressa.Api.IntegrationTests` | Integração (33) | API + PostgreSQL + **Redis reais**: fila de ponta a ponta, passe de outro usuário recusado, cliques simultâneos com a mesma chave, chave divergente, chave abandonada retomada, limite compartilhado entre instâncias, token assinado com a chave anterior, invalidação do cache, limpeza, reprocessamento da outbox, `no-store` |
+| `tests/lua` | Scripts Lua (22 cenários) | Executados contra um **Redis real** (serviço no CI): ordem de chegada, limite de compradores, passe de uso único, devolução, encerramento da fila, 50 entradas e 10 Workers simultâneos |
+| `web` (Vitest) | Interface (15) | Chave de idempotência estável entre tentativas, sala de espera, renovação de sessão |
 | `web/e2e` (Playwright) | Ponta a ponta (3 cenários × desktop e celular) | Compra com pagamento recusado e aprovado, sala de espera até a reserva, rotas protegidas |
 | `tests/carga` (k6) | Carga | Vitrine a 300 req/s; 300 compradores simultâneos pela fila — [resultados](docs/desempenho.md) |
 
@@ -138,7 +140,7 @@ A estrutura em camadas da Pleno foi mantida (ADR [0013](../docs/adr/0013-monolit
 | `Infrastructure/Manutencao` | Limpeza de dados antigos |
 | `Application/Fila` | Caso de uso da sala de espera |
 | `Api/Infra/Filtros.cs` | `[Idempotente]` e `[LimiteDistribuido]` |
-| `Worker/AdmissaoDaFilaVirtual.cs` | Libera a próxima leva a cada 2 s |
+| `Worker/Trabalhos.cs` (`AdmissaoDaFilaVirtual`) | Libera a próxima leva a cada 2 s |
 | `deploy/`, `infrastructure/terraform/`, `tests/carga/` | Containers, AWS e carga |
 
 ## Fila virtual
@@ -192,7 +194,7 @@ Por que Redis e não o banco ou o RabbitMQ: [ADR 0009](../docs/adr/0009-fila-vir
 
 ## Observabilidade
 
-- **Traces** (OpenTelemetry): ASP.NET Core, HttpClient, EF Core, Redis e atividades próprias (`Ingressa`). O `traceparent` vai da requisição para a outbox e para o cabeçalho da mensagem no RabbitMQ: o trace da compra continua no Worker.
+- **Traces** (OpenTelemetry): ASP.NET Core, HttpClient, EF Core/Npgsql e atividades próprias (`Ingressa`). O `traceparent` vai da requisição para a outbox e para o cabeçalho da mensagem no RabbitMQ: o trace da compra continua no Worker.
 - **Métricas de negócio**: `ingressa.reservas`, `ingressa.pagamentos`, `ingressa.fila.liberados`, `ingressa.fila.tamanho`, além das métricas de runtime e HTTP.
 - **Logs** JSON com `trace_id`; resposta HTTP com `X-Trace-Id`.
 - Local: Grafana em http://localhost:3000. AWS: X-Ray e CloudWatch pelo coletor ao lado de cada tarefa (ADR [0012](../docs/adr/0012-observabilidade-opentelemetry.md)).
