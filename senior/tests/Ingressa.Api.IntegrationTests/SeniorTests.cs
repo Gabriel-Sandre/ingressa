@@ -139,6 +139,8 @@ public sealed class IdempotenciaTests(ApiFactory api)
         Assert.Equal(HttpStatusCode.Created, primeira.StatusCode);
         Assert.Equal(HttpStatusCode.Created, segunda.StatusCode);
         Assert.Equal("true", segunda.Headers.GetValues("Idempotent-Replayed").Single());
+        // A repetição devolve a resposta inteira, inclusive o Location do 201.
+        Assert.Equal(primeira.Headers.Location, segunda.Headers.Location);
         var p1 = await primeira.Content.ReadFromJsonAsync<PedidoResponse>(Json.Opcoes);
         var p2 = await segunda.Content.ReadFromJsonAsync<PedidoResponse>(Json.Opcoes);
         Assert.Equal(p1!.Id, p2!.Id);

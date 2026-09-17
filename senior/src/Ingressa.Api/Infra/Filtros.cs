@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -66,6 +67,11 @@ public sealed class FiltroDeIdempotencia(
 
             case SituacaoDaChave.Concluida:
                 http.Response.Headers[CabecalhoDeRepeticao] = "true";
+                if (!string.IsNullOrEmpty(reivindicacao.Local))
+                {
+                    http.Response.Headers.Location = reivindicacao.Local;
+                }
+
                 context.Result = new ContentResult
                 {
                     StatusCode = reivindicacao.StatusHttp,
@@ -80,7 +86,25 @@ public sealed class FiltroDeIdempotencia(
         if (executado.Exception is null && executado.Result is ObjectResult { StatusCode: >= 200 and < 300 } resultado)
         {
             var resposta = JsonSerializer.Serialize(resultado.Value, opcoesJson);
-            await controle.ConcluirAsync(reivindicacao.Id, resultado.StatusCode!.Value, resposta, CancellationToken.None);
+            var status = resultado.StatusCode!.Value;
+
+            // O cabeçalho Location só existe depois que o resultado é executado (o 201 da reserva
+            // aponta para o pedido criado), por isso a resposta é guardada quando ela vai começar
+            // a ser enviada — assim a repetição devolve exatamente a mesma resposta.
+            http.Response.OnStarting(async () =>
+            {
+                try
+                {
+                    await controle.ConcluirAsync(
+                        reivindicacao.Id, status, resposta, http.Response.Headers.Location, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    // Não vale derrubar uma operação bem-sucedida por causa do registro da chave:
+                    // a chave fica "em andamento" e pode ser retomada depois de dois minutos.
+                    logger.LogError(ex, "Falha ao guardar a resposta idempotente de {Rota}", rota);
+                }
+            });
             return;
         }
 
@@ -121,9 +145,14 @@ public sealed class FiltroDeLimite(
     IConfiguration configuracao,
     ILogger<FiltroDeLimite> logger) : IAsyncActionFilter
 {
+    // Ligar a configuração por reflexão a cada requisição custa caro num caminho que existe
+    // justamente para aguentar pico; a regra muda só com reinício, então fica em cache.
+    private static readonly ConcurrentDictionary<string, PoliticaDeLimite> Regras = new();
+
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        var regra = configuracao.GetSection($"LimitesDistribuidos:{politica}").Get<PoliticaDeLimite>() ?? new PoliticaDeLimite();
+        var regra = Regras.GetOrAdd(politica, nome =>
+            configuracao.GetSection($"LimitesDistribuidos:{nome}").Get<PoliticaDeLimite>() ?? new PoliticaDeLimite());
         var http = context.HttpContext;
         var particao = http.User.ObterUsuarioIdOuNulo() is { } id
             ? $"u{id}"

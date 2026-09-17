@@ -26,6 +26,9 @@ public class RequisicaoIdempotente
     public string HashDaRequisicao { get; private set; } = string.Empty;
     public int? StatusHttp { get; private set; }
     public string? Resposta { get; private set; }
+
+    /// <summary>Cabeçalho Location da resposta original (o 201 da reserva aponta para o pedido criado).</summary>
+    public string? Local { get; private set; }
     public DateTime CriadaEm { get; private set; }
     public DateTime? ConcluidaEm { get; private set; }
 }
@@ -45,7 +48,7 @@ public enum SituacaoDaChave
     Divergente
 }
 
-public sealed record ReivindicacaoDeChave(SituacaoDaChave Situacao, long Id, int? StatusHttp, string? Resposta);
+public sealed record ReivindicacaoDeChave(SituacaoDaChave Situacao, long Id, int? StatusHttp, string? Resposta, string? Local = null);
 
 public sealed class ControleDeIdempotencia(IngressaDbContext db, TimeProvider relogio)
 {
@@ -81,7 +84,8 @@ public sealed class ControleDeIdempotencia(IngressaDbContext db, TimeProvider re
 
         if (existente.StatusHttp is not null)
         {
-            return new ReivindicacaoDeChave(SituacaoDaChave.Concluida, existente.Id, existente.StatusHttp, existente.Resposta);
+            return new ReivindicacaoDeChave(
+                SituacaoDaChave.Concluida, existente.Id, existente.StatusHttp, existente.Resposta, existente.Local);
         }
 
         if (agora - existente.CriadaEm > RequisicaoIdempotente.TempoMaximoEmAndamento)
@@ -99,7 +103,7 @@ public sealed class ControleDeIdempotencia(IngressaDbContext db, TimeProvider re
         return new ReivindicacaoDeChave(SituacaoDaChave.EmAndamento, existente.Id, null, null);
     }
 
-    public Task ConcluirAsync(long id, int statusHttp, string resposta, CancellationToken ct)
+    public Task ConcluirAsync(long id, int statusHttp, string resposta, string? local, CancellationToken ct)
     {
         var agora = relogio.GetUtcNow().UtcDateTime;
         return db.RequisicoesIdempotentes
@@ -107,6 +111,7 @@ public sealed class ControleDeIdempotencia(IngressaDbContext db, TimeProvider re
             .ExecuteUpdateAsync(s => s
                 .SetProperty(r => r.StatusHttp, statusHttp)
                 .SetProperty(r => r.Resposta, resposta)
+                .SetProperty(r => r.Local, local)
                 .SetProperty(r => r.ConcluidaEm, agora), ct);
     }
 
@@ -123,6 +128,7 @@ internal sealed class RequisicaoIdempotenteConfiguracao : IEntityTypeConfigurati
         builder.Property(r => r.Chave).HasMaxLength(ControleDeIdempotencia.TamanhoMaximoDaChave).IsRequired();
         builder.Property(r => r.Rota).HasMaxLength(200).IsRequired();
         builder.Property(r => r.HashDaRequisicao).HasMaxLength(64).IsRequired();
+        builder.Property(r => r.Local).HasMaxLength(300);
         builder.Property(r => r.Resposta).HasColumnType("jsonb");
         builder.HasIndex(r => new { r.UsuarioId, r.Chave }).IsUnique();
         builder.HasIndex(r => r.CriadaEm);

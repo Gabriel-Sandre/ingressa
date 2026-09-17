@@ -25,7 +25,28 @@ public static class InicializadorDoBanco
         var agora = sp.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
         var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(InicializadorDoBanco));
 
-        await db.Database.MigrateAsync();
+        // Várias réplicas sobem juntas (compose e ECS). O lock consultivo do PostgreSQL garante
+        // que só uma aplique as migrations e insira os dados iniciais; as outras esperam e seguem.
+        // O lock é da sessão e é liberado sozinho se o processo cair.
+        await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_lock({ChaveDoLock})");
+        try
+        {
+            await db.Database.MigrateAsync();
+            await SemearAsync(sp, db, hasher, configuracao, agora, dadosDeDemonstracao, logger);
+        }
+        finally
+        {
+            await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_unlock({ChaveDoLock})");
+        }
+    }
+
+    /// <summary>Número arbitrário, fixo: identifica este lock entre os locks consultivos do banco.</summary>
+    private const long ChaveDoLock = 728_140_193;
+
+    private static async Task SemearAsync(
+        IServiceProvider sp, IngressaDbContext db, ISenhaHasher hasher, IConfiguration configuracao,
+        DateTime agora, bool dadosDeDemonstracao, ILogger logger)
+    {
 
         var emailAdmin = configuracao["Admin:Email"];
         var senhaAdmin = configuracao["Admin:Senha"];

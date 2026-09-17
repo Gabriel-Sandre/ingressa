@@ -97,7 +97,7 @@ export interface ProblemDetails {
   errors?: Record<string, string[]>
 }
 
-export type SituacaoNaFila = 'Fora' | 'Aguardando' | 'Liberado'
+export type SituacaoNaFila = 'Fora' | 'Aguardando' | 'Liberado' | 'Comprando'
 
 export interface PosicaoNaFila {
   eventoId: number
