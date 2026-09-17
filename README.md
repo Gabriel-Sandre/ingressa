@@ -21,24 +21,24 @@ O Ingressa resolve esses problemas **em etapas**, e cada etapa fica registrada n
 
 ## As três versões
 
-| | [Júnior](junior/) | [Pleno](pleno/) | Sênior |
+| | [Júnior](junior/) | [Pleno](pleno/) | [Sênior](senior/) |
 |---|---|---|---|
 | **Pergunta que responde** | "Sei construir uma API correta?" | "Sei estruturar um sistema profissional?" | "Sei decidir arquitetura para escala e falhas?" |
-| **Arquitetura** | Monólito em um projeto | Monólito em camadas | Monólito modular + serviços extraídos com justificativa |
-| **Banco** | SQLite | PostgreSQL + migrations | PostgreSQL + Redis |
-| **Concorrência** | Não tratada (limitação documentada) | Concorrência otimista + reserva com expiração | Fila virtual + idempotência |
-| **Mensageria** | — | RabbitMQ + Outbox | Eventos entre módulos |
-| **Interface** | JavaScript puro | React + TypeScript | + testes ponta a ponta |
-| **Qualidade** | Testes de unidade/serviço | + integração com banco real, CI | + carga (k6), segurança (SAST/DAST) |
-| **Operação** | `dotnet run` | Docker Compose, logs estruturados | OpenTelemetry, IaC (Terraform/AWS) |
-| **Status** | ✅ Concluída | ✅ Concluída | ⏳ Planejada |
+| **Arquitetura** | Monólito em um projeto | Monólito em camadas + Worker | Mesmas camadas, réplicas e autoscaling (extração de serviços avaliada e descartada) |
+| **Banco** | SQLite | PostgreSQL + migrations | PostgreSQL + Redis (fila, limites, cache) |
+| **Concorrência** | Não tratada (limitação documentada) | UPDATE atômico + reserva com expiração | + fila virtual e idempotência |
+| **Mensageria** | — | RabbitMQ + Outbox | + trace distribuído e reprocessamento de falhas |
+| **Interface** | JavaScript puro | React + TypeScript | + sala de espera e testes ponta a ponta |
+| **Qualidade** | Testes de unidade/serviço | + integração com banco real, CI | + carga (k6), Playwright, SAST/DAST |
+| **Operação** | `dotnet run` | Docker Compose, logs estruturados | OpenTelemetry, Terraform/AWS, runbooks |
+| **Status** | ✅ Concluída | ✅ Concluída | ✅ Concluída |
 
 Cada pasta é um projeto independente, com README próprio explicando o que foi feito, como rodar e **quais limitações motivaram a versão seguinte**.
 
 ## Começando pela versão Júnior
 
 ```bash
-git clone https://github.com/Gabriel-Sandre/ingressa.git
+git clone https://github.com/Helboy1977/ingressa.git
 cd ingressa/junior
 dotnet run --project src/Ingressa.Api --launch-profile http
 # abra http://localhost:5080  (cliente@ingressa.dev / Senha@123)
@@ -47,14 +47,15 @@ dotnet run --project src/Ingressa.Api --launch-profile http
 Para a versão Pleno (precisa do Docker):
 
 ```bash
-cd ingressa/pleno
+cd ingressa/pleno            # ou ingressa/senior
+cp .env.example .env         # troque as senhas
 docker compose up --build
 # abra http://localhost:8080
 ```
 
-| Júnior | Pleno |
-|---|---|
-| ![Vitrine da versão Júnior](junior/docs/screenshots/01-vitrine.png) | ![Vitrine da versão Pleno](pleno/docs/screenshots/01-vitrine.png) |
+| Júnior | Pleno | Sênior |
+|---|---|---|
+| ![Vitrine da versão Júnior](junior/docs/screenshots/01-vitrine.png) | ![Vitrine da versão Pleno](pleno/docs/screenshots/01-vitrine.png) | ![Sala de espera da versão Sênior](senior/docs/screenshots/03-sala-de-espera.png) |
 
 ### O mesmo problema, duas respostas
 
@@ -71,8 +72,9 @@ docker compose up --build
 ingressa/
 ├── junior/   → API REST + EF Core + SQLite + JWT + vitrine em JavaScript
 ├── pleno/    → camadas, PostgreSQL, reserva e pagamento, RabbitMQ + outbox, React, Docker
-├── senior/   → (planejada)
+├── senior/   → fila virtual, idempotência, Redis, OpenTelemetry, k6, Playwright, Terraform (AWS)
 ├── docs/     → decisões de arquitetura (ADRs) e roadmap
+├── .github/  → CI das três versões e varreduras de segurança
 └── pdf/      → estudo de caso completo (análise, decisões e evolução)
 ```
 
@@ -85,6 +87,6 @@ ingressa/
 ## Autor
 
 **Gabriel Sandre** — estudante de Análise e Desenvolvimento de Sistemas (INFNET)
-[LinkedIn](https://www.linkedin.com/in/sandregabriel) · [GitHub](https://github.com/Gabriel-Sandre)
+[LinkedIn](https://www.linkedin.com/in/sandregabriel) · [GitHub](https://github.com/Helboy1977)
 
 Licenciado sob a [licença MIT](LICENSE).
