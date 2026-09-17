@@ -351,9 +351,11 @@ public sealed class OperacaoTests(ApiFactory api)
         var id = await api.NoEscopoAsync(async sp =>
         {
             var db = sp.GetRequiredService<IngressaDbContext>();
-            await db.Database.ExecuteSqlRawAsync("""
+            // O conteúdo vai como parâmetro: chaves {} num SQL literal seriam lidas como formatação.
+            var conteudo = """{"pedidoId":0}""";
+            await db.Database.ExecuteSqlAsync($"""
                 INSERT INTO "MensagensOutbox" ("MensagemId", "Tipo", "Conteudo", "OcorridoEm", "Tentativas", "UltimoErro")
-                VALUES (gen_random_uuid(), 'pedido.pago', '{"pedidoId":0}', now(), 10, 'broker fora do ar')
+                VALUES (gen_random_uuid(), 'pedido.pago', CAST({conteudo} AS jsonb), now(), 10, 'broker fora do ar')
                 """);
             return await db.MensagensOutbox.Where(m => m.UltimoErro == "broker fora do ar").Select(m => m.Id).FirstAsync();
         });

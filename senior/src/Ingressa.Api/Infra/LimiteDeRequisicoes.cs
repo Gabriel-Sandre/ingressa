@@ -12,6 +12,7 @@ public static class LimiteDeRequisicoes
     public static IServiceCollection AddLimiteDeRequisicoes(this IServiceCollection services, IConfiguration configuracao)
     {
         var porMinuto = configuracao.GetValue("LimiteDeRequisicoes:GlobalPorMinuto", 600);
+        services.AddSingleton<PoliticasDeLimite>();
 
         return services.AddRateLimiter(opcoes =>
         {
