@@ -12,3 +12,9 @@ Cada arquivo registra **uma** decisão: o contexto, as alternativas, a escolha e
 | [0006](0006-outbox-e-rabbitmq.md) | Transactional Outbox + RabbitMQ | Pleno | Aceita |
 | [0007](0007-sessao-com-refresh-token-em-cookie.md) | Sessão com refresh token rotativo em cookie HttpOnly | Pleno | Aceita |
 | [0008](0008-repositorios-e-consultas-separadas.md) | Repositórios para escrita, consultas projetadas para leitura | Pleno | Aceita |
+| [0009](0009-fila-virtual-no-redis.md) | Fila virtual no Redis com scripts Lua | Sênior | Aceita |
+| [0010](0010-idempotencia-por-chave.md) | Idempotência com `Idempotency-Key` | Sênior | Aceita |
+| [0011](0011-cache-hibrido.md) | HybridCache (memória + Redis) para a vitrine | Sênior | Aceita |
+| [0012](0012-observabilidade-opentelemetry.md) | Observabilidade com OpenTelemetry | Sênior | Aceita |
+| [0013](0013-monolito-modular-mantido.md) | Continuar sem microsserviços | Sênior | Aceita |
+| [0014](0014-ecs-fargate.md) | ECS Fargate em vez de Kubernetes | Sênior | Aceita |

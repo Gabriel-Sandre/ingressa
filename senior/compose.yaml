@@ -1,0 +1,136 @@
+# Ambiente completo do Ingressa (versão Sênior), com réplicas e observabilidade.
+#
+#   cp .env.example .env        # e troque as senhas
+#   docker compose up --build
+#
+# Interface ........ http://localhost:8080
+# API (Scalar) ..... http://localhost:8080/scalar      (só com AMBIENTE=Development)
+# Grafana .......... http://localhost:3000             (traces, métricas e logs)
+# RabbitMQ ......... http://localhost:15672
+# E-mails .......... http://localhost:8025
+#
+# Teste de carga:    docker compose --profile carga run --rm k6 run /scripts/pico-de-vendas.js
+
+name: ingressa-senior
+
+x-banco: &banco
+  ConnectionStrings__Ingressa: Host=postgres;Database=ingressa;Username=ingressa;Password=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
+  ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD:?defina REDIS_PASSWORD no arquivo .env}
+  Otlp__Endpoint: http://observabilidade:4317
+  ASPNETCORE_ENVIRONMENT: ${AMBIENTE:-Development}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ingressa
+      POSTGRES_USER: ingressa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ingressa -d ingressa"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    # appendonly: a fila sobrevive a um reinício do Redis.
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no arquivo .env}"]
+    volumes: [redis:/data]
+    ports: ["127.0.0.1:6379:6379"] # só nesta máquina, para rodar a API fora do Docker
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ingressa
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no arquivo .env}
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["127.0.0.1:8025:8025"]
+
+  # Grafana + Tempo (traces) + Prometheus (métricas) + Loki (logs) num único container, para uso local.
+  observabilidade:
+    image: grafana/otel-lgtm:0.11.10
+    ports: ["127.0.0.1:3000:3000"]
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/dotnet.Dockerfile
+      args: { PROJETO: Ingressa.Api }
+    environment:
+      <<: *banco
+      Jwt__Chave: ${JWT_CHAVE:?defina JWT_CHAVE no arquivo .env}
+      Admin__Email: ${ADMIN_EMAIL:-}
+      Admin__Senha: ${ADMIN_SENHA:-}
+      Banco__DadosDeDemonstracao: ${DADOS_DE_DEMONSTRACAO:-true}
+      LimitesDistribuidos__autenticacao__Limite: ${LIMITE_AUTENTICACAO:-10}
+      LimitesDistribuidos__reservas__Limite: ${LIMITE_RESERVAS:-20}
+      LimiteDeRequisicoes__GlobalPorMinuto: ${LIMITE_GLOBAL_POR_MINUTO:-600}
+    # Duas réplicas atrás do nginx: prova que limites, fila e cache funcionam entre instâncias.
+    deploy:
+      replicas: 2
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health/live || exit 1"]
+      interval: 10s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      dockerfile: deploy/dotnet.Dockerfile
+      args: { PROJETO: Ingressa.Worker }
+    environment:
+      <<: *banco
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Senha: ${RABBITMQ_PASSWORD}
+      Email__Host: mailpit
+      FilaVirtual__CompradoresSimultaneos: ${COMPRADORES_SIMULTANEOS:-50}
+    deploy:
+      replicas: 2
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      api: { condition: service_healthy }
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    ports: ["8080:8080"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  k6:
+    image: grafana/k6:1.3.0
+    profiles: [carga]
+    environment:
+      BASE_URL: http://web:8080
+      K6_WEB_DASHBOARD: "true"
+      K6_WEB_DASHBOARD_EXPORT: /resultados/relatorio.html
+    volumes:
+      - ./tests/carga:/scripts:ro
+      - ./tests/carga/resultados:/resultados
+    ports: ["127.0.0.1:5665:5665"]
+    depends_on: [web]
+
+volumes:
+  postgres:
+  redis:

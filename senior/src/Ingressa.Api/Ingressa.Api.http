@@ -1,0 +1,66 @@
+# Requisições de exemplo da versão Pleno (Visual Studio ou REST Client do VS Code).
+# Suba o ambiente antes: docker compose up -d postgres rabbitmq mailpit
+@base = http://localhost:5180
+@senha = Senha@123
+
+### Login do cliente (o refresh token volta num cookie HttpOnly)
+# @name cliente
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "cliente@ingressa.dev", "senha": "{{senha}}" }
+
+### Login do organizador
+# @name organizador
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "organizador@ingressa.dev", "senha": "{{senha}}" }
+
+### Login do administrador
+# @name admin
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "admin@ingressa.dev", "senha": "{{senha}}" }
+
+###
+@tokenCliente = {{cliente.response.body.accessToken}}
+@tokenOrganizador = {{organizador.response.body.accessToken}}
+@tokenAdmin = {{admin.response.body.accessToken}}
+
+### Vitrine ordenada por preço
+GET {{base}}/api/eventos?ordem=Preco&tamanhoPagina=5
+
+### Detalhe (ids de exemplo podem variar)
+# @name evento
+GET {{base}}/api/eventos/1
+
+### Reservar 2 ingressos (ficam presos por 10 minutos)
+# @name reserva
+POST {{base}}/api/pedidos
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{ "eventoId": {{evento.response.body.id}}, "itens": [ { "setorId": {{evento.response.body.setores[0].id}}, "quantidade": 2 } ] }
+
+### Pagar (tok_aprovado | tok_recusado | tok_sem_saldo)
+POST {{base}}/api/pedidos/{{reserva.response.body.id}}/pagamento
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{ "tokenDePagamento": "tok_aprovado" }
+
+### Consultar o pedido (os ingressos aparecem quando o Worker os emitir)
+GET {{base}}/api/pedidos/{{reserva.response.body.id}}
+Authorization: Bearer {{tokenCliente}}
+
+### Renovar a sessão usando o cookie
+POST {{base}}/api/auth/renovar
+
+### Organizadores aguardando aprovação
+GET {{base}}/api/admin/organizadores/pendentes
+Authorization: Bearer {{tokenAdmin}}
+
+### Saúde da aplicação
+GET {{base}}/health/ready
