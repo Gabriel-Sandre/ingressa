@@ -25,18 +25,31 @@ public static class InicializadorDoBanco
         var agora = sp.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
         var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(InicializadorDoBanco));
 
-        // Várias réplicas sobem juntas (compose e ECS). O lock consultivo do PostgreSQL garante
-        // que só uma aplique as migrations e insira os dados iniciais; as outras esperam e seguem.
-        // O lock é da sessão e é liberado sozinho se o processo cair.
-        await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_lock({ChaveDoLock})");
+        // Várias réplicas sobem juntas (compose e ECS): sem coordenação, duas tentam aplicar a
+        // mesma migration e uma morre com "column already exists". O lock consultivo do PostgreSQL
+        // faz as outras esperarem; quando entram, o EF já vê a migration aplicada e não faz nada.
+        //
+        // O lock pertence à *sessão*, então a conexão precisa ficar aberta o tempo todo: sem o
+        // OpenConnectionAsync, o EF devolveria a conexão ao pool depois de cada comando e o
+        // lock seria solto na hora (foi exatamente o que aconteceu na primeira tentativa).
+        await db.Database.OpenConnectionAsync();
         try
         {
-            await db.Database.MigrateAsync();
-            await SemearAsync(sp, db, hasher, configuracao, agora, dadosDeDemonstracao, logger);
+            await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_lock({ChaveDoLock})");
+            try
+            {
+                await db.Database.MigrateAsync();
+                await SemearAsync(sp, db, hasher, configuracao, agora, dadosDeDemonstracao, logger);
+            }
+            finally
+            {
+                // Sem isto, a conexão volta ao pool ainda segurando o lock.
+                await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_unlock({ChaveDoLock})");
+            }
         }
         finally
         {
-            await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_unlock({ChaveDoLock})");
+            await db.Database.CloseConnectionAsync();
         }
     }
 
