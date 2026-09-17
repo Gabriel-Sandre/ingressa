@@ -17,6 +17,13 @@ resource "aws_kms_key" "principal" {
         Resource  = "*"
       },
       {
+        Sid       = "AlarmesENotificacoes"
+        Effect    = "Allow"
+        Principal = { Service = "cloudwatch.amazonaws.com" }
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey*"]
+        Resource  = "*"
+      },
+      {
         Sid       = "CloudWatchLogs"
         Effect    = "Allow"
         Principal = { Service = "logs.${var.regiao}.amazonaws.com" }
@@ -69,6 +76,16 @@ resource "aws_security_group" "apps" {
   name        = "${local.nome}-apps"
   description = "Containers da API, do Worker e da interface"
   vpc_id      = aws_vpc.principal.id
+}
+
+# Service Connect: a interface fala com a API pelo nome "api:8080" dentro da VPC.
+resource "aws_vpc_security_group_ingress_rule" "apps_entre_si" {
+  security_group_id            = aws_security_group.apps.id
+  description                  = "Chamadas entre tarefas (ECS Service Connect)"
+  referenced_security_group_id = aws_security_group.apps.id
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
 }
 
 resource "aws_vpc_security_group_ingress_rule" "apps_do_alb" {

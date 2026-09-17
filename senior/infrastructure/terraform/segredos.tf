@@ -33,12 +33,17 @@ resource "aws_secretsmanager_secret" "aplicacao" {
 resource "aws_secretsmanager_secret_version" "aplicacao" {
   secret_id = aws_secretsmanager_secret.aplicacao.id
   secret_string = jsonencode({
-    Jwt__Chave                  = random_password.jwt.result
-    ConnectionStrings__Redis    = "${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379,ssl=true,password=${random_password.redis.result}"
-    RabbitMq__Senha             = random_password.rabbitmq.result
-    ConnectionStrings__Ingressa = "Host=${aws_db_instance.postgres.address};Database=ingressa;Username=ingressa;SSL Mode=VerifyFull;Root Certificate=/etc/ssl/certs/rds-global-bundle.pem"
-    # O Npgsql lê a senha da variável PGPASSWORD quando ela não está na connection string.
-    PGPASSWORD = random_password.postgres.result
+    Jwt__Chave               = random_password.jwt.result
+    ConnectionStrings__Redis = "${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379,ssl=true,password=${random_password.redis.result}"
+    RabbitMq__Senha          = random_password.rabbitmq.result
+    ConnectionStrings__Ingressa = join(";", [
+      "Host=${aws_db_instance.postgres.address}",
+      "Database=ingressa",
+      "Username=ingressa",
+      "Password=${random_password.postgres.result}",
+      "SSL Mode=VerifyFull",
+      "Root Certificate=/etc/ssl/certs/rds-global-bundle.pem"
+    ])
     # Credenciais SMTP do Amazon SES (a AWS deriva a senha SMTP da chave de acesso).
     Email__Usuario = aws_iam_access_key.smtp.id
     Email__Senha   = aws_iam_access_key.smtp.ses_smtp_password_v4
