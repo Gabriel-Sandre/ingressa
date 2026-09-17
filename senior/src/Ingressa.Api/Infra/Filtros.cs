@@ -139,20 +139,30 @@ public sealed class PoliticaDeLimite
     public int JanelaEmSegundos { get; set; } = 60;
 }
 
+/// <summary>
+/// Guarda as políticas já lidas da configuração: ligar a configuração por reflexão a cada
+/// requisição custa caro num caminho feito justamente para aguentar pico. É um serviço
+/// (e não um campo estático) para que cada aplicação tenha o seu — dois hosts no mesmo
+/// processo, como nos testes, têm configurações diferentes.
+/// </summary>
+public sealed class PoliticasDeLimite(IConfiguration configuracao)
+{
+    private readonly ConcurrentDictionary<string, PoliticaDeLimite> _politicas = new();
+
+    public PoliticaDeLimite Obter(string politica) =>
+        _politicas.GetOrAdd(politica, nome =>
+            configuracao.GetSection($"LimitesDistribuidos:{nome}").Get<PoliticaDeLimite>() ?? new PoliticaDeLimite());
+}
+
 public sealed class FiltroDeLimite(
     string politica,
     ILimitadorDistribuido limitador,
-    IConfiguration configuracao,
+    PoliticasDeLimite politicas,
     ILogger<FiltroDeLimite> logger) : IAsyncActionFilter
 {
-    // Ligar a configuração por reflexão a cada requisição custa caro num caminho que existe
-    // justamente para aguentar pico; a regra muda só com reinício, então fica em cache.
-    private static readonly ConcurrentDictionary<string, PoliticaDeLimite> Regras = new();
-
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        var regra = Regras.GetOrAdd(politica, nome =>
-            configuracao.GetSection($"LimitesDistribuidos:{nome}").Get<PoliticaDeLimite>() ?? new PoliticaDeLimite());
+        var regra = politicas.Obter(politica);
         var http = context.HttpContext;
         var particao = http.User.ObterUsuarioIdOuNulo() is { } id
             ? $"u{id}"
