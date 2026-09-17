@@ -131,7 +131,7 @@ resource "aws_iam_role_policy" "aplicacao_telemetria" {
 
 locals {
   segredos = [
-    for chave in ["Jwt__Chave", "ConnectionStrings__Redis", "ConnectionStrings__Ingressa", "RabbitMq__Senha", "PGPASSWORD", "Email__Usuario", "Email__Senha"] : {
+    for chave in ["Jwt__Chave", "ConnectionStrings__Redis", "ConnectionStrings__Ingressa", "RabbitMq__Senha", "Email__Usuario", "Email__Senha"] : {
       name      = chave
       valueFrom = "${aws_secretsmanager_secret.aplicacao.arn}:${chave}::"
     }
