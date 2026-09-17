@@ -107,6 +107,26 @@ jobs:
           name: cobertura-senior
           path: senior/TestResults
 
+  senior-lua:
+    name: Sênior · scripts Lua (Redis real)
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6390:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: senior
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install redis
+      - run: python tests/lua/teste_scripts_lua.py --porta 6390
+
   senior-web:
     name: Sênior · interface (lint, testes e build)
     runs-on: ubuntu-latest
