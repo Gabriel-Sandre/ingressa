@@ -10,6 +10,7 @@ using Ingressa.Application.Pedidos;
 using Ingressa.Domain.Eventos;
 using Ingressa.Domain.Usuarios;
 using Ingressa.Infrastructure.Idempotencia;
+using Ingressa.Infrastructure.Outbox;
 using Ingressa.Infrastructure.Manutencao;
 using Ingressa.Infrastructure.Persistencia;
 using Microsoft.EntityFrameworkCore;
@@ -242,6 +243,30 @@ public sealed class OperacaoTests(ApiFactory api)
         var resposta = await api.NovoCliente().GetAsync("/health/ready");
 
         Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReservaGravaOTraceNaOutbox_ParaContinuarNoWorker()
+    {
+        var (_, organizadorId) = await api.EntrarComoAsync(PerfilUsuario.Organizador);
+        var (eventoId, setorId) = await api.CriarEventoAsync(organizadorId, 10);
+        var (cliente, _) = await api.EntrarComoAsync(PerfilUsuario.Cliente);
+
+        var resposta = await cliente.PostIdempotenteAsync("/api/pedidos",
+            new CriarPedidoRequest(eventoId, [new ItemPedidoRequest(setorId, 1)]));
+        var pedido = await resposta.Content.ReadFromJsonAsync<PedidoResponse>(Json.Opcoes);
+        await cliente.PostIdempotenteAsync($"/api/pedidos/{pedido!.Id}/pagamento", new PagamentoRequest("tok_aprovado"));
+
+        var correlacao = await api.NoEscopoAsync(sp => sp.GetRequiredService<IngressaDbContext>()
+            .MensagensOutbox.AsNoTracking()
+            .Where(m => m.Tipo == "pedido.pago")
+            .OrderByDescending(m => m.Id)
+            .Select(m => m.CorrelacaoId)
+            .FirstAsync());
+
+        // Formato W3C: 00-<trace de 32 dígitos>-<span de 16>-<flags>; é o que o Worker usa como pai do trace.
+        Assert.NotNull(correlacao);
+        Assert.Matches("^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$", correlacao);
     }
 
     [Fact]
