@@ -38,6 +38,7 @@ services:
     # appendonly: a fila sobrevive a um reinício do Redis.
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no arquivo .env}"]
     volumes: [redis:/data]
+    ports: ["127.0.0.1:6379:6379"] # só nesta máquina, para rodar a API fora do Docker
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
       interval: 5s
@@ -50,7 +51,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ingressa
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no arquivo .env}
-    ports: ["127.0.0.1:15672:15672"]
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -78,6 +79,7 @@ services:
       Banco__DadosDeDemonstracao: ${DADOS_DE_DEMONSTRACAO:-true}
       LimitesDistribuidos__autenticacao__Limite: ${LIMITE_AUTENTICACAO:-10}
       LimitesDistribuidos__reservas__Limite: ${LIMITE_RESERVAS:-20}
+      LimiteDeRequisicoes__GlobalPorMinuto: ${LIMITE_GLOBAL_POR_MINUTO:-600}
     # Duas réplicas atrás do nginx: prova que limites, fila e cache funcionam entre instâncias.
     deploy:
       replicas: 2

@@ -146,6 +146,7 @@ jobs:
             echo "JWT_CHAVE=$(openssl rand -base64 48)"
             echo "LIMITE_AUTENTICACAO=100000"
             echo "LIMITE_RESERVAS=100000"
+            echo "LIMITE_GLOBAL_POR_MINUTO=1000000"
             echo "COMPRADORES_SIMULTANEOS=20"
           } > .env
       - run: docker compose up -d --build --wait
