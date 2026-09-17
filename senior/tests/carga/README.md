@@ -8,7 +8,7 @@
 ## Como rodar
 
 ```bash
-# no .env: LIMITE_AUTENTICACAO=100000 e LIMITE_RESERVAS=100000
+# no .env: LIMITE_AUTENTICACAO, LIMITE_RESERVAS e LIMITE_GLOBAL_POR_MINUTO=1000000
 # (todos os usuários virtuais saem do mesmo IP)
 docker compose up -d --build
 docker compose --profile carga run --rm --service-ports k6 run /scripts/vitrine.js
