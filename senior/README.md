@@ -190,6 +190,7 @@ Por que Redis e não o banco ou o RabbitMQ: [ADR 0009](../docs/adr/0009-fila-vir
 | Força bruta com várias réplicas | Limite `autenticacao` no Redis | Um só contador para todas as instâncias |
 | Redis indisponível | Limites em *fail-open*; cache vai ao banco | A loja continua; eventos com fila param de vender (decisão consciente) |
 | Leitura intensa da vitrine | HybridCache (ADR [0011](../docs/adr/0011-cache-hibrido.md)) | A compra sempre consulta o banco |
+| Pico esgota as conexões do banco | Teto de pool por instância (`Maximum Pool Size`) e `max_connections` maior no PostgreSQL | Achado pelo teste de carga: sem teto, 4 instâncias × 100 conexões estouravam o limite do banco e a API devolvia 500 |
 | Tabelas crescendo | `LimpezaDeDados` a cada hora | Outbox publicada há mais de 7 dias, chaves com mais de 24 h, sessões vencidas há mais de 30 dias |
 
 ## Observabilidade

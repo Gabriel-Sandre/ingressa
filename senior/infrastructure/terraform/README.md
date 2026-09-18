@@ -55,6 +55,20 @@ terraform apply ...
 Depois do primeiro `apply`: verificar o domínio no SES (registros DKIM), confirmar a
 inscrição de e-mail do SNS e apontar o DNS do domínio para `endereco_load_balancer`.
 
+## Conexões com o banco
+
+O PostgreSQL aceita um número fixo de conexões (cerca de 400 nesta classe de instância), e cada
+tarefa mantém seu próprio pool. Por isso a connection string fixa `Maximum Pool Size=15`:
+
+| | Tarefas (máx.) | Conexões por tarefa | Total |
+|---|---|---|---|
+| API | 20 | 15 | 300 |
+| Worker | 6 | 15 | 90 |
+| Migração (pontual) | 1 | 15 | 15 |
+
+Se o número máximo de tarefas subir, o teto por tarefa precisa descer na mesma proporção — ou entra
+um pool externo (PgBouncer / RDS Proxy), que é o caminho quando a aplicação cresce.
+
 ## Limitações conhecidas
 
 - Não foi aplicado nem testado numa conta AWS; versões de imagens (ex.: coletor OTel) e
