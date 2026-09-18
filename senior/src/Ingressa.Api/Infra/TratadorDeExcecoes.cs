@@ -22,7 +22,8 @@ public sealed class TratadorDeExcecoes(IProblemDetailsService problemDetails, IL
 
         if (status >= 500)
         {
-            logger.LogError(exception, "Erro não tratado em {Metodo} {Caminho}", httpContext.Request.Method, httpContext.Request.Path);
+            logger.LogError(exception, "Erro não tratado em {Metodo} {Caminho}",
+                TextoDeLog.Sanitizar(httpContext.Request.Method), TextoDeLog.Sanitizar(httpContext.Request.Path));
         }
         else
         {
