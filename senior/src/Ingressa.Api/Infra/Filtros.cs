@@ -102,7 +102,7 @@ public sealed class FiltroDeIdempotencia(
                 {
                     // Não vale derrubar uma operação bem-sucedida por causa do registro da chave:
                     // a chave fica "em andamento" e pode ser retomada depois de dois minutos.
-                    logger.LogError(ex, "Falha ao guardar a resposta idempotente de {Rota}", rota);
+                    logger.LogError(ex, "Falha ao guardar a resposta idempotente de {Rota}", TextoDeLog.Sanitizar(rota));
                 }
             });
             return;
@@ -110,7 +110,7 @@ public sealed class FiltroDeIdempotencia(
 
         // Falhou: libera a chave para o cliente tentar de novo.
         await controle.DescartarAsync(reivindicacao.Id, CancellationToken.None);
-        logger.LogInformation("Chave de idempotência descartada após falha em {Rota}", rota);
+        logger.LogInformation("Chave de idempotência descartada após falha em {Rota}", TextoDeLog.Sanitizar(rota));
     }
 
     internal static ObjectResult Problema(int status, string titulo, string detalhe) =>
