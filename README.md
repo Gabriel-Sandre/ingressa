@@ -38,7 +38,7 @@ Cada pasta é um projeto independente, com README próprio explicando o que foi 
 ## Começando pela versão Júnior
 
 ```bash
-git clone https://github.com/Helboy1977/ingressa.git
+git clone https://github.com/Gabriel-Sandre/ingressa.git
 cd ingressa/junior
 dotnet run --project src/Ingressa.Api --launch-profile http
 # abra http://localhost:5080  (cliente@ingressa.dev / Senha@123)
@@ -89,6 +89,6 @@ ingressa/
 ## Autor
 
 **Gabriel Sandre** — estudante de Análise e Desenvolvimento de Sistemas (INFNET)
-[LinkedIn](https://www.linkedin.com/in/sandregabriel) · [GitHub](https://github.com/Helboy1977)
+[LinkedIn](https://www.linkedin.com/in/sandregabriel) · [GitHub](https://github.com/Gabriel-Sandre)
 
 Licenciado sob a [licença MIT](LICENSE).
