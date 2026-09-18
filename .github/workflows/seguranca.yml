@@ -119,7 +119,7 @@ jobs:
             echo "JWT_CHAVE=$(openssl rand -base64 48)"
           } > .env
           docker compose up -d --build --wait
-      - uses: zaproxy/action-baseline@v0.14.0
+      - uses: zaproxy/action-baseline@v0.15.0
         with:
           target: http://localhost:8080
           allow_issue_writing: false
