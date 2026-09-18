@@ -41,6 +41,10 @@ resource "aws_secretsmanager_secret_version" "aplicacao" {
       "Database=ingressa",
       "Username=ingressa",
       "Password=${random_password.postgres.result}",
+      # Teto de conexões por tarefa. O RDS aceita ~400 conexões nesta classe; com o máximo de
+      # tarefas da API e do Worker, 15 por tarefa mantém folga. Sem teto, o pool do Npgsql vai
+      # a 100 por tarefa e o banco recusa conexões no pico.
+      "Maximum Pool Size=15",
       "SSL Mode=VerifyFull",
       "Root Certificate=/etc/ssl/certs/rds-global-bundle.pem"
     ])

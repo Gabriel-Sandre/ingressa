@@ -15,7 +15,9 @@ async function entrarComoNovoCliente(page: Page) {
   await page.getByLabel('Senha (mínimo 8 caracteres)').fill(SENHA)
   await page.getByLabel('Confirme a senha').fill(SENHA)
   await page.getByRole('button', { name: 'Criar conta' }).click()
-  await expect(page.getByText(/^Olá,/)).toBeVisible()
+  // Cadastro e login gastam PBKDF2 com 600 mil iterações (proposital); no primeiro acesso,
+  // com a API ainda fria, isso passa dos 5 s padrão do Playwright.
+  await expect(page.getByText(/^Olá,/)).toBeVisible({ timeout: 30_000 })
 }
 
 async function entrar(page: Page, email: string) {
@@ -23,7 +25,7 @@ async function entrar(page: Page, email: string) {
   await page.getByLabel('E-mail').fill(email)
   await page.getByLabel('Senha').fill(SENHA)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByText(/^Olá,/)).toBeVisible()
+  await expect(page.getByText(/^Olá,/)).toBeVisible({ timeout: 30_000 })
 }
 
 test('cliente reserva, paga e recebe os ingressos', async ({ page }) => {

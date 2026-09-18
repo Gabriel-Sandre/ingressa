@@ -43,3 +43,4 @@
 - [ ] Gravar a resposta idempotente na mesma transação do pedido
 - [ ] Aplicar o Terraform numa conta de homologação e exercitar a recuperação regional
 - [ ] CDN para a vitrine e imagens dos eventos
+- [ ] Retentativa automática em falhas transitórias do banco (`EnableRetryOnFailure`) e pool externo (PgBouncer/RDS Proxy)

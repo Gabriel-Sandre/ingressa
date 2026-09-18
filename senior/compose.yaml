@@ -14,7 +14,10 @@
 name: ingressa-senior
 
 x-banco: &banco
-  ConnectionStrings__Ingressa: Host=postgres;Database=ingressa;Username=ingressa;Password=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
+  # Maximum Pool Size é por instância: 4 aplicações (2 APIs + 2 Workers) x 20 = 80 conexões,
+  # dentro das 200 configuradas no PostgreSQL abaixo. Sem esse teto, o pool do Npgsql vai a 100
+  # por instância e o banco recusa conexões no pico ("sorry, too many clients already").
+  ConnectionStrings__Ingressa: Host=postgres;Database=ingressa;Username=ingressa;Password=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env};Maximum Pool Size=20
   ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD:?defina REDIS_PASSWORD no arquivo .env}
   Otlp__Endpoint: http://observabilidade:4317
   ASPNETCORE_ENVIRONMENT: ${AMBIENTE:-Development}
@@ -22,6 +25,7 @@ x-banco: &banco
 services:
   postgres:
     image: postgres:17-alpine
+    command: ["postgres", "-c", "max_connections=200"]
     environment:
       POSTGRES_DB: ingressa
       POSTGRES_USER: ingressa
