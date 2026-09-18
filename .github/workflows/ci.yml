@@ -213,7 +213,7 @@ jobs:
       # Sem backend: valida a sintaxe e as referências sem acessar a AWS.
       - run: terraform init -backend=false
       - run: terraform validate
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: terraform-linters/setup-tflint@v6
       - run: tflint --init && tflint
         env:
           GITHUB_TOKEN: ${{ github.token }}
