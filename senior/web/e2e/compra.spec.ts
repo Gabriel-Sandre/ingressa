@@ -2,6 +2,22 @@ import { expect, test, type Page } from '@playwright/test'
 
 const SENHA = 'Senha@123'
 
+/**
+ * Cria uma conta nova e já entra com ela. Os projetos "desktop" e "celular" rodam em
+ * paralelo contra o mesmo ambiente: se os dois usassem a mesma conta, um roubaria o
+ * passe da fila do outro (o passe é por usuário) e o teste ficaria instável.
+ */
+async function entrarComoNovoCliente(page: Page) {
+  const email = `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@teste.dev`
+  await page.goto('/cadastro')
+  await page.getByLabel('Nome').fill('Cliente de Teste E2E')
+  await page.getByLabel('E-mail').fill(email)
+  await page.getByLabel('Senha (mínimo 8 caracteres)').fill(SENHA)
+  await page.getByLabel('Confirme a senha').fill(SENHA)
+  await page.getByRole('button', { name: 'Criar conta' }).click()
+  await expect(page.getByText(/^Olá,/)).toBeVisible()
+}
+
 async function entrar(page: Page, email: string) {
   await page.goto('/entrar')
   await page.getByLabel('E-mail').fill(email)
@@ -11,7 +27,7 @@ async function entrar(page: Page, email: string) {
 }
 
 test('cliente reserva, paga e recebe os ingressos', async ({ page }) => {
-  await entrar(page, 'cliente@ingressa.dev')
+  await entrarComoNovoCliente(page)
 
   await page.goto('/?busca=stand-up')
   await page.getByRole('link', { name: /Stand-up/ }).click()
@@ -33,7 +49,7 @@ test('cliente reserva, paga e recebe os ingressos', async ({ page }) => {
 })
 
 test('evento de alta procura passa pela sala de espera', async ({ page }) => {
-  await entrar(page, 'cliente@ingressa.dev')
+  await entrarComoNovoCliente(page)
 
   await page.goto('/?busca=festival')
   await page.getByRole('link', { name: /Festival de Rock/ }).click()
