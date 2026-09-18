@@ -184,7 +184,9 @@ jobs:
       - name: k6 (fumaça do pico de vendas)
         run: |
           mkdir -p tests/carga/resultados && chmod 777 tests/carga/resultados
-          docker compose --profile carga run --rm k6 run -e COMPRADORES=40 /scripts/pico-de-vendas.js
+          # O runner roda banco, cache, fila, APIs, workers e o próprio k6 em 2 vCPUs: aqui o k6
+          # verifica correção (zero 5xx, checks, estoque), não a latência das metas de produção.
+          docker compose --profile carga run --rm k6 run -e COMPRADORES=40 -e META_FILA_MS=3000 -e META_RESERVA_MS=5000 /scripts/pico-de-vendas.js
       - name: Logs em caso de falha
         if: failure()
         run: docker compose logs --no-color > compose.log
