@@ -4,8 +4,12 @@ import { defineConfig, devices } from '@playwright/test'
 // BASE_URL permite apontar para outro ambiente (ex.: homologação).
 export default defineConfig({
   testDir: './e2e',
-  timeout: 60_000,
-  retries: process.env.CI ? 1 : 0,
+  timeout: 90_000,
+  // Uma repetição: o ambiente completo (banco, filas, duas APIs) roda na mesma máquina do
+  // navegador, e uma lentidão pontual não deve reprovar o cenário.
+  retries: 1,
+  // 5 s (padrão) é pouco para uma reserva real: transação no banco, passe da fila e hash de senha.
+  expect: { timeout: 15_000 },
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:8080',

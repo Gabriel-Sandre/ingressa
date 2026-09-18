@@ -111,7 +111,7 @@ docker compose --profile carga run --rm --service-ports k6 run /scripts/pico-de-
 | `tests/lua` | Scripts Lua (22 cenários) | Executados contra um **Redis real** (serviço no CI): ordem de chegada, limite de compradores, passe de uso único, devolução, encerramento da fila, 50 entradas e 10 Workers simultâneos |
 | `web` (Vitest) | Interface (15) | Chave de idempotência estável entre tentativas, sala de espera, renovação de sessão |
 | `web/e2e` (Playwright) | Ponta a ponta (3 cenários × desktop e celular) | Compra com pagamento recusado e aprovado, sala de espera até a reserva, rotas protegidas |
-| `tests/carga` (k6) | Carga | Vitrine a 300 req/s; 300 compradores simultâneos pela fila — [resultados](docs/desempenho.md) |
+| `tests/carga` (k6) | Carga | Vitrine: **294 req/s, 0 falhas, p95 de 66 ms**. Pico: **300 compradores, 300 reservas, 0 erros, 0 vendas além da capacidade** — [medições completas](docs/desempenho.md) |
 
 ## Arquitetura
 
@@ -258,4 +258,4 @@ Os demais endpoints são os da [Pleno](../pleno/README.md#endpoints). Documenta�
 3. **Janela de idempotência:** se o processo cair entre o commit do pedido e a gravação da resposta, a retomada pode criar uma segunda reserva (que expira se não for paga) — detalhes no ADR 0010.
 4. **Terraform não aplicado** numa conta real; a recuperação regional não foi exercitada.
 5. **Cache local** pode mostrar a vitrine com até 5 s de atraso numa réplica.
-6. **Resultados de carga** dependem da máquina; os números em [desempenho.md](docs/desempenho.md) vêm de um computador pessoal, não de produção.
+6. **Resultados de carga** dependem da máquina: as medições em [desempenho.md](docs/desempenho.md) vêm de um notebook rodando *tudo* junto (banco, cache, fila, quatro instâncias e o gerador de carga). A correção se sustenta lá — zero erro, zero venda além da capacidade —, mas as metas de latência de produção não se medem nesse cenário.
