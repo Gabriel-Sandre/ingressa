@@ -15,5 +15,7 @@ Metas que orientam alarmes, testes de carga e decisões de capacidade. Medidas n
 **Orçamento de erro:** 99,9% em 28 dias ≈ 40 minutos de indisponibilidade. Se o orçamento
 acabar, novas funcionalidades param até a causa ser corrigida.
 
-Os números acima são metas de projeto. Os valores medidos em cada execução ficam em
-[`desempenho.md`](desempenho.md).
+Os números acima são metas de **produção**. Os valores medidos ficam em
+[`desempenho.md`](desempenho.md) — e lá também está o porquê de a medição local não bater as metas
+de latência: o computador que roda o teste roda também o banco, o cache, a fila e as quatro
+instâncias da aplicação.
