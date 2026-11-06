@@ -37,6 +37,11 @@ jobs:
   segredos:
     name: Segredos no histórico (gitleaks)
     runs-on: ubuntu-latest
+    # Em PR a action lista os commits pela API: no repositório privado isso
+    # precisa de `pull-requests: read` (sem ela: "Resource not accessible").
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:

@@ -20,8 +20,10 @@ RUN dotnet publish src/${PROJETO}/${PROJETO}.csproj -c Release -o /app --no-rest
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 ARG PROJETO
-# curl só para o health check do container.
+# curl só para o health check do container. O upgrade aplica as correções de
+# segurança publicadas depois da imagem base (o Trivy reprova HIGH corrigível).
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 # Certificados da AWS para validar o TLS do RDS (SSL Mode=VerifyFull).
