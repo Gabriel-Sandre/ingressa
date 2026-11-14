@@ -6,7 +6,7 @@ COPY web/ .
 RUN npm run build
 
 # Imagem sem root: escuta na 8080 e roda como usuário "nginx".
-FROM nginxinc/nginx-unprivileged:1.29-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 # A imagem base leva dias para ser reconstruída depois de um CVE do Alpine. Atualizar os
 # pacotes no build fecha as falhas que já têm correção — é o que o Trivy cobra no CI.
 USER root
