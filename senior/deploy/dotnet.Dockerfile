@@ -1,7 +1,7 @@
 # Imagem única para a API e o Worker: escolha com --build-arg PROJETO=Ingressa.Api | Ingressa.Worker
 ARG PROJETO=Ingressa.Api
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 ARG PROJETO
 WORKDIR /src
 
