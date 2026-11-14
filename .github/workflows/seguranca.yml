@@ -14,7 +14,13 @@ jobs:
   codeql:
     name: CodeQL (${{ matrix.linguagem }})
     runs-on: ubuntu-latest
+    # Code scanning em repositório privado exige GitHub Code Security (pago):
+    # o job só roda quando o repositório é público.
+    if: ${{ !github.event.repository.private }}
+    # Permissões do job substituem as do topo: sem `contents: read` o checkout
+    # falha com "repository not found" quando o repositório é privado.
     permissions:
+      contents: read
       security-events: write
     strategy:
       fail-fast: false
@@ -31,6 +37,11 @@ jobs:
   segredos:
     name: Segredos no histórico (gitleaks)
     runs-on: ubuntu-latest
+    # Em PR a action lista os commits pela API: no repositório privado isso
+    # precisa de `pull-requests: read` (sem ela: "Resource not accessible").
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,7 +52,8 @@ jobs:
 
   dependencias:
     name: Revisão de dependências
-    if: github.event_name == 'pull_request'
+    # Também depende do Code Security em repositório privado.
+    if: github.event_name == 'pull_request' && !github.event.repository.private
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +65,7 @@ jobs:
     name: Imagens e configuração (Trivy)
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       security-events: write
     steps:
       - uses: actions/checkout@v4
@@ -83,8 +96,17 @@ jobs:
           severity: CRITICAL,HIGH
           format: sarif
           output: trivy-config.sarif
+      # Sem code scanning (repositório privado) o SARIF não tem onde aparecer:
+      # o mesmo relatório sai em tabela no log, sem reprovar o job.
+      - name: Configuração (relatório no log)
+        if: always() && github.event.repository.private
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: senior
+          severity: CRITICAL,HIGH
       - uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && !github.event.repository.private
         with:
           sarif_file: trivy-config.sarif
           category: trivy-config

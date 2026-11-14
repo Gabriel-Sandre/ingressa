@@ -1,4 +1,6 @@
 version: 2
+# Atualizações agrupadas: um PR por ecossistema para patch/minor, e versões
+# major ficam em PRs próprios (são as que costumam exigir ajuste de código).
 updates:
   - package-ecosystem: nuget
     directories: ["/junior", "/pleno", "/senior"]
@@ -6,15 +8,26 @@ updates:
     groups:
       microsoft: { patterns: ["Microsoft.*", "System.*"] }
       opentelemetry: { patterns: ["OpenTelemetry*"] }
+      nuget-menores:
+        patterns: ["*"]
+        update-types: [minor, patch]
   - package-ecosystem: npm
     directories: ["/pleno/web", "/senior/web"]
     schedule: { interval: weekly }
+    groups:
+      npm-menores:
+        patterns: ["*"]
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directories: ["/pleno/deploy", "/senior/deploy"]
     schedule: { interval: weekly }
+    groups:
+      imagens-docker: { patterns: ["*"] }
   - package-ecosystem: github-actions
     directory: "/"
     schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
   - package-ecosystem: terraform
     directory: "/senior/infrastructure/terraform"
     schedule: { interval: weekly }
